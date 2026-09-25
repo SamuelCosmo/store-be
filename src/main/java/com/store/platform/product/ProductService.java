@@ -1,0 +1,94 @@
+package com.store.platform.product;
+
+import com.store.platform.category.Category;
+import com.store.platform.category.CategoryService;
+import com.store.platform.common.exception.ResourceNotFoundException;
+import com.store.platform.product.dto.ProductRequest;
+import com.store.platform.product.dto.ProductResponse;
+import com.store.platform.security.AuthContext;
+import com.store.platform.store.StoreService;
+import com.store.platform.user.User;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class ProductService {
+
+    private final ProductRepository productRepository;
+    private final CategoryService categoryService;
+    private final StoreService storeService;
+
+    @Transactional
+    public ProductResponse create(ProductRequest request) {
+        Category category = categoryService.findScopedOrThrow(request.categoryId());
+        Product product = Product.builder()
+                .category(category)
+                .name(request.name())
+                .description(request.description())
+                .price(request.price())
+                .active(true)
+                .tokenCost(request.tokenCost() == null ? 0 : request.tokenCost())
+                .build();
+        return ProductResponse.from(productRepository.save(product));
+    }
+
+    public List<ProductResponse> list(Long storeId, Long categoryId, Boolean activeOnly) {
+        // kiosk/customer sessions only ever see active products
+        boolean onlyActive = Boolean.TRUE.equals(activeOnly)
+                || AuthContext.current().role() == User.Role.CUSTOMER;
+        if (categoryId != null) {
+            categoryService.findScopedOrThrow(categoryId);
+            return map(onlyActive
+                    ? productRepository.findByCategoryIdAndActiveTrue(categoryId)
+                    : productRepository.findByCategoryId(categoryId));
+        }
+        Long scope = storeService.resolveScope(storeId);
+        return map(onlyActive
+                ? productRepository.findByCategoryStoreIdAndActiveTrue(scope)
+                : productRepository.findByCategoryStoreId(scope));
+    }
+
+    public ProductResponse getById(Long id) {
+        return ProductResponse.from(findScopedOrThrow(id));
+    }
+
+    @Transactional
+    public ProductResponse update(Long id, ProductRequest request) {
+        Product product = findScopedOrThrow(id);
+        Category category = categoryService.findScopedOrThrow(request.categoryId());
+        product.setCategory(category);
+        product.setName(request.name());
+        product.setDescription(request.description());
+        product.setPrice(request.price());
+        product.setTokenCost(request.tokenCost() == null ? 0 : request.tokenCost());
+        return ProductResponse.from(productRepository.save(product));
+    }
+
+    @Transactional
+    public ProductResponse setActive(Long id, boolean active) {
+        Product product = findScopedOrThrow(id);
+        product.setActive(active);
+        return ProductResponse.from(productRepository.save(product));
+    }
+
+    @Transactional
+    public void delete(Long id) {
+        productRepository.delete(findScopedOrThrow(id));
+    }
+
+    /** Product must live under a store the caller may operate. */
+    public Product findScopedOrThrow(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + id));
+        storeService.resolveScope(product.getCategory().getStore().getId());
+        return product;
+    }
+
+    private List<ProductResponse> map(List<Product> products) {
+        return products.stream().map(ProductResponse::from).toList();
+    }
+}
