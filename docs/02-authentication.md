@@ -27,6 +27,11 @@ Tras el login, el frontend redirige según el rol del usuario:
 - `EMPLOYEE`
 - `CUSTOMER`
 
+Un usuario pertenece a un **cliente** (`client_id`) y opera uno o varios de
+sus establecimientos (`user_stores`) — ej. un ADMIN puede administrar todos
+los stores del cliente; un EMPLOYEE puede trabajar en varios. La cuenta
+genérica del kiosko queda ligada a un solo establecimiento.
+
 ## Acceso a módulos por rol
 
 Cada tipo de usuario solo ve y opera los módulos/pantallas que le corresponden.
@@ -36,7 +41,7 @@ El frontend oculta las rutas no autorizadas y el backend las refuerza con
 > **Modelo modular:** los módulos se venden por cliente y el admin del
 > cliente asigna subconjuntos a sus usuarios (`user_modules ⊆
 > client_modules`). La matriz de abajo es el **preset del giro restaurante**;
-> ver [16-modules-and-permissions](16-modules-and-permissions.md).
+> ver [13-modules-and-permissions](13-modules-and-permissions.md).
 
 | Módulo / Pantalla      | ADMIN | MANAGER | EMPLOYEE | CUSTOMER |
 | ---------------------- | :---: | :-----: | :------: | :------: |
@@ -48,7 +53,7 @@ El frontend oculta las rutas no autorizadas y el backend las refuerza con
 | Cocina (KDS)           |  —    |    ✓    |    ✓     |    —     |
 | Barra                  |  —    |    ✓    |    ✓     |    —     |
 | Reservaciones          |  ✓    |    ✓    |    ✓     |    —     |
-| Fichas (compra/canje)  |  ✓    |    ✓    |    ✓     | saldo ✓  |
+| Fichas (compra/canje)  |  ✓    |    ✓    |    ✓     |    —     |
 
 Ejemplos de la regla:
 
@@ -74,12 +79,14 @@ necesita una sesión autenticada:
 4. El cliente final que usa el kiosko no necesita cuenta propia — la orden
    queda asociada a la sesión del kiosko.
 
-Opciones de implementación (decidir al construirlo):
+Si un usuario opera varios establecimientos (`user_stores`), el `storeId`
+activo se elige al hacer login y viaja como claim en el JWT; el backend
+valida que el store pedido pertenezca a su `user_stores`.
 
-- **Cuenta de kiosko** — un `User` por kiosko con `store` asignado
-  (ej. `kiosk-sucursal1@cosmo.com`).
-- **Device registration** — entidad `Kiosk` con token propio enlazado al
-  establecimiento (más robusto, siguiente iteración).
+Decisión: **cuenta `CUSTOMER` genérica por establecimiento** — el staff activa
+el kiosko con ese login (ej. `kiosk-sucursal1@cosmo.com`) y la sesión queda
+ligada al `storeId`. Iteración futura si hace falta: entidad `Kiosk` con
+device registration y token propio.
 
 ## Endpoints
 

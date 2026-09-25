@@ -90,13 +90,12 @@ Usado por la pantalla de cocina: `PREPARING`, `READY`, `CANCELLED`.
 
 ```text
 POST   /api/tokens/purchase     # { quantity, paymentMethod } — venta en caja
-GET    /api/tokens/balance      # saldo del customer autenticado
-GET    /api/tokens/transactions # historial de movimientos
-POST   /api/tokens/redeem       # { productId, quantity } — canje por bebida
+POST   /api/tokens/redeem       # { productId, quantity } — canje en barra
 ```
 
-**Reglas:** solo productos con `tokenCost > 0` son canjeables; el canje
-valida saldo y descuenta inventario; la compra registra al staff vendedor.
+**Reglas:** fichas físicas anónimas — no hay wallet ni cuenta de customer;
+solo productos con `tokenCost > 0` son canjeables; el canje descuenta
+inventario; compra y canje quedan ligados al staff autenticado que los operó.
 
 ## Reports *(extras del cliente — ADMIN/MANAGER)*
 

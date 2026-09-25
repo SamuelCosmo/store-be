@@ -39,7 +39,7 @@ Siguientes requests:
 
 ## Pantallas a construir
 
-Mapeo completo en [13-frontend-screens](13-frontend-screens.md):
+Mapeo completo en [10-frontend-screens](10-frontend-screens.md):
 
 | Pantalla         | Ruta sugerida      | Consume                                     |
 | ---------------- | ------------------ | ------------------------------------------- |
@@ -48,10 +48,11 @@ Mapeo completo en [13-frontend-screens](13-frontend-screens.md):
 | Caja (POS)       | `/pos`             | `POST /api/orders` (CASH/CARD)              |
 | Kiosko           | `/kiosk`           | `POST /api/orders` (solo CARD; sesión de kiosko ligada al establecimiento) |
 | Cocina (KDS)     | `/kitchen`         | `GET /api/orders?storeId=&status=` + PATCH  |
+| Barra *(extra)*  | `/bar`             | `GET /api/bar/items` + PATCH status       |
 
 ## Contrato de API
 
-Referencia completa: [09-api](09-api.md). Durante desarrollo también sirve
+Referencia completa: [07-api](07-api.md). Durante desarrollo también sirve
 Swagger UI en `http://localhost:8080/swagger-ui.html`.
 
 ## Pendientes en el backend para soportar el frontend

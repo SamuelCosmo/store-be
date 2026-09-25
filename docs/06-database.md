@@ -7,7 +7,7 @@ Client (tenant: restaurante, café, etc.)
  │
  └── Store / Establishment  ← un cliente puede tener varios
         │
-        ├── User            ← staff/admin ligados al establecimiento
+        ├── User            ← ligado al client; opera 1..N stores (user_stores)
         │
         ├── Category
         │      │
@@ -26,18 +26,20 @@ Client (tenant: restaurante, café, etc.)
 
 - `clients` *(nuevo — tenant/negocio que compra el producto)*
 - `stores` *(establecimientos; FK → `clients`)*
-- `users`
+- `users` *(FK → `clients`; staff/admin/kiosko)*
+- `user_stores` *(N:M — en qué establecimientos del cliente opera el usuario;
+  el ADMIN puede tener varios)*
 - `categories`
 - `products`
 - `inventory`
 - `orders`
 - `order_items`
-- `token_wallets` *(extras del cliente — saldo de fichas; ver [15](15-client-extras.md))*
-- `token_transactions` *(movimientos de fichas: PURCHASE/REDEMPTION/ADJUSTMENT)*
+- `token_transactions` *(extras del cliente — movimientos de fichas físicas:
+  PURCHASE/REDEMPTION/ADJUSTMENT; ver [12](12-client-extras.md))*
 - `tables` *(mesas y sillas de barra; `zone`: `DINING`/`BAR`)*
 - `reservations` *(reservación de mesas y sillas de barra)*
 - `tickets` *(folio impreso por orden/transacción — opcional)*
-- `client_modules` *(módulos contratados por el cliente; ver [16](16-modules-and-permissions.md))*
+- `client_modules` *(módulos contratados por el cliente; ver [13](13-modules-and-permissions.md))*
 - `user_modules` *(módulos asignados a cada usuario, ⊆ `client_modules`)*
 
 > **Nota de implementación:** `customers` se modela como `users` con rol
@@ -50,21 +52,24 @@ Client (tenant: restaurante, café, etc.)
 | `clients`     | 1:N → `stores` (el cliente tiene varios establecimientos)     |
 | `stores`      | FK → `clients`, `business_type` (RESTAURANT/RETAIL/BAR/CAFE)  |
 |               | — preset de módulos sugerido por giro                         |
-| `users`       | FK opcional → `stores` (empleados/managers/admin)             |
+| `users`       | FK → `clients` (tenant); `user_stores` acota a qué            |
+|               | establecimientos opera (ADMIN: varios; kiosko: su store)      |
+| `user_stores` | FK → `users`, FK → `stores` — stores del mismo `client_id`    |
 | `client_modules` | FK → `clients`, `module` — módulos comprados por el cliente |
 | `user_modules`   | FK → `users`, `module` — ⊆ `client_modules` del cliente    |
 | `categories`  | FK → `stores`                                                 |
 | `products`    | FK → `categories`, columna `active` (visible en caja/kiosko), |
 |               | `token_cost` — si > 0, canjeable con fichas (bebidas)         |
 | `inventory`   | FK único → `products` (1:1)                                   |
-| `orders`      | FK → `stores`, FK → `users` (customer/staff que la creó),     |
+| `orders`      | FK → `stores`, FK → `users` (staff, o cuenta genérica del     |
+|               | kiosko),                                                      |
 |               | `channel` (POS/KIOSK), `order_type` (DINE_IN/TAKEAWAY),       |
-|               | `payment_method` (CASH/CARD)                                  |
+|               | `payment_method` (CASH/CARD), `refund_status`                 |
+|               | (NONE/REFUNDED — se marca al cancelar una orden pagada)       |
 | `order_items` | FK → `orders`, FK → `products`                                |
-| `token_wallets`     | FK → `stores`, FK → `users` (CUSTOMER), `balance`           |
-| `token_transactions`| FK → `token_wallets`, `type` (PURCHASE/REDEMPTION/            |
-|                     | ADJUSTMENT), `quantity`, FK → `users` (staff que vendió),     |
-|                     | FK opcional → `products` (bebida canjeada)                    |
+| `token_transactions`| FK → `stores`, `type` (PURCHASE/REDEMPTION/ADJUSTMENT),       |
+|                     | `quantity`, FK → `users` (staff que vendió/canjeó — las       |
+|                     | fichas son físicas, sin wallet), FK opcional → `products`     |
 | `tables`      | FK → `stores`, `zone` (DINING/BAR), `seats`, `number` —       |
 |               | la barra son 6 registros con `zone=BAR`, `seats=1`            |
 | `reservations`| FK → `tables`, `date`, `time_slot`, `party_size`,             |
@@ -77,4 +82,5 @@ Client (tenant: restaurante, café, etc.)
 
 - Toda consulta de catálogo/órdenes está acotada por `store_id`, que a su vez
   pertenece a un `client_id`.
-- Un usuario staff solo opera sobre los establecimientos de su cliente.
+- Un usuario solo opera sobre establecimientos de su cliente (`client_id` en
+  `users`) y, salvo ADMIN, solo sobre los listados en `user_stores`.

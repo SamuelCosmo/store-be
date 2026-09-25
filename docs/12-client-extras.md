@@ -1,7 +1,7 @@
 # 15. Extras del cliente
 
 > Todos estos puntos son **módulos opcionales** que se activan por cliente —
-> ver [16-modules-and-permissions](16-modules-and-permissions.md).
+> ver [13-modules-and-permissions](13-modules-and-permissions.md).
 
 Puntos adicionales solicitados por el cliente fuera del alcance original del MVP:
 
@@ -14,27 +14,33 @@ Puntos adicionales solicitados por el cliente fuera del alcance original del MVP
 
 ## 1. Sistema de fichas (tokens) para bebidas
 
-El establecimiento vende **fichas** que el cliente final canjea por bebidas.
-Casos de uso: preventa de bebidas, promociones, eventos.
+El establecimiento vende **fichas físicas** que el cliente final canjea por
+bebidas. Casos de uso: preventa de bebidas, promociones, eventos.
+
+> **Decisión:** las fichas son físicas y anónimas — el cliente final no tiene
+> cuenta. El sistema solo registra la venta (en caja) y el canje (en barra)
+> para reportes e inventario; no hay wallet ni saldo digital.
 
 ### Flujo
 
 ```text
 Compra de fichas (Caja POS)
     ↓
-Customer paga N fichas (efectivo o tarjeta)
+Staff vende N fichas (efectivo o tarjeta)
     ↓
-TokenTransaction type=PURCHASE (+N)     ← queda registrado quién vendió
+TokenTransaction type=PURCHASE (+N)     ← ligada al staff que vendió
     ↓
-Saldo de fichas del customer aumenta
+Se entregan las fichas físicas al customer
     ↓
 ─────────────────────────────────────────
     ↓
-Canje en barra (o caja)
+Canje en barra
     ↓
-Customer elige bebida (Product con tokenCost > 0)
+Customer entrega fichas físicas al bartender
     ↓
-TokenTransaction type=REDEMPTION (−N)   ← valida saldo suficiente
+Bartender elige la bebida (Product con tokenCost > 0)
+    ↓
+TokenTransaction type=REDEMPTION (−N)   ← ligada al staff que canjeó
     ↓
 Se descuenta inventario de la bebida
     ↓
@@ -43,26 +49,21 @@ Aparece en la pantalla de barra para preparar/entregar
 
 ### Reglas
 
-- El saldo de fichas vive por **customer** dentro de un **establecimiento**
-  (una wallet por par `store` + `customer`).
+- Las fichas son **físicas y anónimas**: no existe `token_wallets` ni saldo
+  digital — la ficha en mano ES el saldo.
 - Solo los productos marcados como canjeables (`tokenCost > 0`) se pueden
   pagar con fichas — normalmente la categoría *Bebidas*.
 - El precio de la ficha lo configura el establecimiento (`tokenPrice` en
   `stores` o tabla de configuración).
-- La compra de fichas queda ligada al staff que la vendió (alimenta el
-  reporte *quién vendió más*).
+- Compra y canje quedan ligados al staff autenticado que los operó (alimenta
+  el reporte *quién vendió más*).
 - El canje descuenta inventario igual que una orden normal.
-- Pregunta abierta: ¿fichas anónimas (código/QR físico) o ligadas a una
-  cuenta `CUSTOMER`? Empezar con cuenta; si el cliente quiere fichas
-  físicas anónimas, se agrega `token_cards` con código.
 
 ### Endpoints
 
 ```text
-POST   /api/tokens/purchase        # { quantity, paymentMethod } — en caja
-GET    /api/tokens/balance         # saldo del customer autenticado
-GET    /api/tokens/transactions    # historial del customer
-POST   /api/tokens/redeem          # { productId, quantity } — canje por bebida
+POST   /api/tokens/purchase        # { quantity, paymentMethod } — caja (staff)
+POST   /api/tokens/redeem          # { productId, quantity } — barra (staff)
 ```
 
 ## 2. Reportes de administración
@@ -116,8 +117,9 @@ El establecimiento tiene **mesas** y una **barra fija de 6 sillas**
 GET    /api/tables?zone=               # mesas y sillas de barra
 POST   /api/tables                     # alta de mesas (ADMIN/MANAGER)
 GET    /api/reservations/availability?date=&zone=   # huecos libres
-POST   /api/reservations               # { tableId|barSeatId, date, time,
+POST   /api/reservations               # { tableId, date, timeSlot,
                                        #   partySize, customerName, phone }
+                                       # (sillas de barra = tables zone=BAR)
 GET    /api/reservations?date=&status=
 PATCH  /api/reservations/{id}/status   # CONFIRMED/SEATED/CANCELLED/NO_SHOW
 ```
@@ -132,10 +134,10 @@ Reglas:
 
 ## Nuevas tablas
 
-Ver detalle de columnas en [08-database](08-database.md#tablas).
+Ver detalle de columnas en [06-database](06-database.md#tablas).
 
-- `token_wallets` — saldo de fichas por customer/establecimiento
-- `token_transactions` — movimientos `PURCHASE`/`REDEMPTION`/`ADJUSTMENT`
+- `token_transactions` — movimientos `PURCHASE`/`REDEMPTION`/`ADJUSTMENT`,
+  ligados al staff que operó y al establecimiento
 - `tables` — mesas y sillas de barra (`zone`: `DINING`/`BAR`, `seats`)
 - `reservations` — reservaciones sobre mesas/sillas
 - `tickets` — folio y payload impreso por orden/transacción *(opcional;
@@ -143,8 +145,7 @@ Ver detalle de columnas en [08-database](08-database.md#tablas).
 
 ## Preguntas abiertas para el cliente
 
-- ¿Las fichas son digitales (cuenta del customer) o físicas con código?
-- ¿Las fichas caducan? ¿Se pueden transferir/regalar?
+- ¿Las fichas caducan? (se imprime en la ficha física / política del negocio)
 - ¿La reservación la hace solo el staff o también el customer desde una
   pantalla pública?
 - ¿El ticket de compra de fichas es el mismo formato que el de orden?

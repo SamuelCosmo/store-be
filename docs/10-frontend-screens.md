@@ -26,8 +26,8 @@ Pantalla de inicio de sesión para staff y admin.
 
 - `POST /api/auth/login` → JWT
 - `POST /api/auth/register` (alta de usuarios)
-- Redirige según rol: `ADMIN` → Panel Admin, `EMPLOYEE` → Caja, `CUSTOMER` →
-  Kiosko
+- Redirige según rol + módulos: `ADMIN`/`MANAGER` → Panel Admin, `EMPLOYEE` →
+  Caja o KDS según módulos asignados, `CUSTOMER` (cuenta genérica) → Kiosko
 
 ## 2. Panel Admin (paquete básico)
 
@@ -58,6 +58,9 @@ Pantalla operada por staff para tomar órdenes en el mostrador.
 - Tipo de orden: **Comer aquí** (`DINE_IN`) o **Para llevar** (`TAKEAWAY`)
 - Pago: **efectivo** (`CASH`) o **tarjeta** (`CARD`)
 - Envía `POST /api/orders` con `channel: POS`
+- **Cancelar orden** (hasta `PREPARING`) → `PATCH /api/orders/{id}/status`
+  con `CANCELLED`; restaura inventario. Si estaba pagada, el staff devuelve
+  el dinero manualmente y la orden queda `refund_status = REFUNDED`
 - **Venta de fichas** *(extra del cliente)* → `POST /api/tokens/purchase`
 - **Imprime ticket** de la orden → `GET /api/orders/{id}/ticket`
 
@@ -86,7 +89,8 @@ Recibe las órdenes del establecimiento y muestra su estado en tiempo real.
 - Botones de acción por orden:
   - **En preparación** → `PATCH .../status` con `PREPARING`
   - **Listo** → `PATCH .../status` con `READY`
-  - **Cancelar** → `PATCH .../status` con `CANCELLED` (restaura inventario)
+  - **Cancelar** → `PATCH .../status` con `CANCELLED` (hasta `PREPARING`;
+    restaura inventario)
 
 Rol: `EMPLOYEE` / `MANAGER` (cocina).
 

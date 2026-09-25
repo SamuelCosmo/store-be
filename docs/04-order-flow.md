@@ -50,8 +50,11 @@ READY       ← botón "listo" en cocina
 COMPLETED
 ```
 
-`CANCELLED` — permitido desde `PENDING`/`CONFIRMED` (botón "cancelar" en
-cocina/caja); restaura el inventario.
+`CANCELLED` — permitido desde `PENDING`, `CONFIRMED` y `PREPARING` (botón
+"cancelar" en cocina y en caja); restaura el inventario. Una vez `READY` la
+comida ya está lista y no se cancela. Si la orden ya estaba pagada, el staff
+devuelve el dinero manualmente y la orden queda marcada
+`refund_status = REFUNDED`.
 
 ## Endpoints
 

@@ -48,6 +48,9 @@ com.store.platform
 ├── product/       # Product module
 ├── inventory/     # Inventory module
 └── order/         # Order + OrderItem module
+
+# Extras del cliente (pendientes — misma estructura cuando se construyan):
+# client/, token/, bar/, report/, table/, ticket/
 ```
 
 Cada módulo sigue la misma estructura interna:
@@ -61,4 +64,38 @@ Cada módulo sigue la misma estructura interna:
 └── dto/
     ├── <X>Request.java
     └── <X>Response.java
+```
+
+## Request flow
+
+Example: creating an order.
+
+```text
+Frontend
+   │
+   │ POST /api/orders
+   ▼
+OrderController
+   │
+   │ OrderRequest DTO
+   ▼
+OrderService
+   │
+   ├── Validate products
+   ├── Check inventory
+   ├── Calculate total
+   ├── Create order
+   └── Update inventory
+   │
+   ▼
+OrderRepository
+   │
+   ▼
+PostgreSQL
+   │
+   ▼
+OrderResponse DTO
+   │
+   ▼
+Frontend
 ```

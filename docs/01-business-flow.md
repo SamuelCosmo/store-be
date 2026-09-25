@@ -19,62 +19,63 @@ Set Product Prices
     ↓
 Configure Inventory
     ↓
-Activate / Deactivate products  ← controla qué se muestra a los clientes
+Activate / Deactivate products  ← flag `active`: qué se muestra en caja/kiosko
+```
+
+Desde el **Panel Admin**, el `ADMIN` del cliente da de alta/baja categorías y
+productos, define precios, activa/desactiva productos para el canal de venta y
+configura inventario.
+
+## Jerarquía
+
+```text
+Client (tenant)
+ │
+ ├── Establishment A
+ │      ├── Categories → Products → Inventory
+ │      └── Orders
+ │
+ └── Establishment B
+        ├── Categories → Products → Inventory
+        └── Orders
 ```
 
 ## Order flow por canal
 
-```text
-Caja (POS)                    Kiosko (self-service)
-    │                              │
-Staff selecciona categorías   Customer selecciona categorías
-y productos                   y productos (solo activos)
-    │                              │
-Comer aquí / Para llevar      Comer aquí / Para llevar
-    │                              │
-Pago: efectivo o tarjeta      Pago: solo tarjeta
-    │                              │
-    └──────────┬───────────────────┘
-               ▼
-         POST /api/orders
-               ↓
-    Order Service validates Order
-               ↓
-    Inventory is checked
-               ↓
-    Inventory is updated
-               ↓
-    Order is confirmed
-               ↓
-    Kitchen screen (KDS) receives the Order
-               ↓
-    Kitchen marks PREPARING → READY
-      (o CANCELLED)
-               ↓
-    Customer receives Order
-               ↓
-    Order becomes COMPLETED
-```
+Dos canales crean órdenes (`POST /api/orders`):
 
-## Canales de venta
+- **Caja (POS)** — operada por staff (`EMPLOYEE`), pago en efectivo o tarjeta.
+- **Kiosko** — autoservicio del customer, solo tarjeta, sesión ligada al
+  establecimiento.
 
-| Canal            | Quién opera      | Pago            | Tipo de orden              |
-| ---------------- | ---------------- | --------------- | -------------------------- |
-| Caja (POS)       | Staff (EMPLOYEE) | Efectivo/tarjeta | Comer aquí / Para llevar   |
-| Kiosko           | Customer         | Solo tarjeta    | Comer aquí / Para llevar   |
-
-## Pantalla de cocina (KDS)
-
-La cocina ve las órdenes confirmadas del establecimiento y las marca con botones:
-
-- `PREPARING` — la orden está en preparación
-- `READY` — la orden está lista para entregar
-- `CANCELLED` — la orden se cancela (restaura inventario)
+Ambas permiten *comer aquí* / *para llevar*. El backend valida productos e
+inventario, confirma la orden y llega a la **pantalla de cocina (KDS)**, que la
+marca `PREPARING → READY` o `CANCELLED`. Detalle por canal en
+[03-customer-flow](03-customer-flow.md) y del backend en
+[04-order-flow](04-order-flow.md).
 
 ## Extras del cliente
 
-Además del flujo base, el cliente pidió: **fichas para bebidas** (compra en
-caja, canje en barra), **reportes de admin** (ventas del día, top productos,
-top empleado), **sección de barra**, **impresión de tickets** y
-**reservación de mesas y barra** (6 sillas). Spec completa en
-[15-client-extras](15-client-extras.md).
+Módulos opcionales contratados por cliente: **fichas para bebidas** (físicas),
+**reportes de ventas**, **barra**, **impresión de tickets** y **reservación de
+mesas y barra**. Spec completa en [12-client-extras](12-client-extras.md) y
+modelo modular en [13-modules-and-permissions](13-modules-and-permissions.md).
+
+## Example: Cosmo Coffee (un establecimiento del cliente)
+
+```text
+Cosmo Coffee
+│
+├── Coffee
+│   ├── Espresso
+│   ├── Americano
+│   └── Cappuccino
+│
+├── Cold Drinks
+│   ├── Iced Coffee
+│   └── Iced Tea
+│
+└── Bakery
+    ├── Croissant
+    └── Muffin
+```
