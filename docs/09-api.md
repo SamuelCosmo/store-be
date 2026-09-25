@@ -1,0 +1,87 @@
+# 9. API Happy Path
+
+## Authentication
+
+```text
+POST   /api/auth/register
+POST   /api/auth/login
+```
+
+## Clients (tenants) *(pendiente de implementar)*
+
+```text
+POST   /api/clients
+GET    /api/clients/{id}
+GET    /api/clients/{id}/stores
+```
+
+## Stores / Establishments
+
+```text
+POST   /api/stores            # ligado a un clientId
+GET    /api/stores
+GET    /api/stores/{id}
+PUT    /api/stores/{id}
+```
+
+## Categories
+
+```text
+POST   /api/categories
+GET    /api/categories        # ?storeId=
+GET    /api/categories/{id}
+PUT    /api/categories/{id}
+DELETE /api/categories/{id}
+```
+
+## Products
+
+```text
+POST   /api/products
+GET    /api/products          # ?storeId=&categoryId=
+GET    /api/products/{id}
+PUT    /api/products/{id}
+PATCH  /api/products/{id}/active   # activar/desactivar para caja y kiosko
+DELETE /api/products/{id}
+```
+
+## Inventory
+
+```text
+GET    /api/inventory/{productId}
+PUT    /api/inventory/{productId}
+```
+
+## Orders
+
+```text
+POST   /api/orders
+GET    /api/orders            # ?storeId=&status= (pantalla de cocina filtra por estado)
+GET    /api/orders/{id}
+PATCH  /api/orders/{id}/status
+```
+
+### OrderRequest
+
+```json
+{
+  "channel": "POS | KIOSK",
+  "orderType": "DINE_IN | TAKEAWAY",
+  "paymentMethod": "CASH | CARD",
+  "items": [{ "productId": 1, "quantity": 2 }]
+}
+```
+
+**Reglas:**
+
+- `channel = KIOSK` ⇒ `paymentMethod` solo `CARD`.
+- `storeId` **no va en el body** — se deriva de la sesión autenticada (kiosko
+  ligado al establecimiento por login, staff ligado a su tienda).
+
+### PATCH /api/orders/{id}/status
+
+```json
+{ "status": "PENDING | CONFIRMED | PREPARING | READY | COMPLETED | CANCELLED" }
+```
+
+Usado por la pantalla de cocina: `PREPARING`, `READY`, `CANCELLED`.
