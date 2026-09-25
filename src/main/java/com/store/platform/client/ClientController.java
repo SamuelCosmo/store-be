@@ -1,0 +1,48 @@
+package com.store.platform.client;
+
+import com.store.platform.client.dto.ClientRequest;
+import com.store.platform.client.dto.ClientResponse;
+import com.store.platform.security.AuthContext;
+import com.store.platform.store.StoreService;
+import com.store.platform.store.dto.StoreResponse;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/clients")
+@RequiredArgsConstructor
+public class ClientController {
+
+    private final ClientService clientService;
+    private final StoreService storeService;
+
+    // ponytail: open endpoint for dev onboarding; becomes platform-admin only when that role exists
+    @PostMapping
+    public ResponseEntity<ClientResponse> create(@Valid @RequestBody ClientRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(clientService.create(request));
+    }
+
+    @GetMapping("/{id}")
+    public ClientResponse getById(@PathVariable Long id) {
+        requireOwnClient(id);
+        return clientService.getById(id);
+    }
+
+    @GetMapping("/{id}/stores")
+    public List<StoreResponse> listStores(@PathVariable Long id) {
+        requireOwnClient(id);
+        return storeService.listByClient(id);
+    }
+
+    private void requireOwnClient(Long id) {
+        if (!AuthContext.current().clientId().equals(id)) {
+            throw new AccessDeniedException("Not your client");
+        }
+    }
+}

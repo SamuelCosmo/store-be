@@ -1,9 +1,8 @@
 # Store Platform
 
-Modular monolith MVP — Java 21 + Spring Boot + PostgreSQL.
-
-> **Status:** early development. The repo currently contains the design docs;
-> the backend code lands in the next commits.
+Modular monolith — Java 21 + Spring Boot + PostgreSQL, multi-tenant
+(un `Client` = negocio que compra el producto; cada cliente tiene N
+establecimientos según su plan).
 
 Documentación del happy path en [`docs/`](docs/README.md).
 
@@ -40,40 +39,47 @@ PostgreSQL queda en `localhost:5433` — db `storedb`, user `store`, password `s
 ## Happy path rápido (smoke test)
 
 ```bash
-# 1. Registrar un ADMIN y un CUSTOMER (devuelven el JWT)
+# 1. Alta del tenant (plan: máx. establecimientos, cajas y kioskos por store)
+curl -X POST http://localhost:8080/api/clients \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Cosmo Coffee","maxStores":1,"maxPosPerStore":2,"maxKiosksPerStore":2}'
+
+# 2. Primer ADMIN del cliente (register solo crea el primer usuario del tenant)
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"name":"Admin","email":"admin@mail.com","password":"secret1","role":"ADMIN"}'
+  -d '{"clientId":1,"name":"Admin","email":"admin@cosmo.com","password":"secret1"}'
 
-curl -X POST http://localhost:8080/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Ana","email":"ana@mail.com","password":"secret1"}'
-
-# 2. Crear store → category → product → inventory (con token ADMIN)
+# 3. El admin crea el establecimiento (clientId sale del JWT)
 curl -X POST http://localhost:8080/api/stores \
-  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
-  -d '{"name":"Cosmo Coffee","description":"Coffee shop"}'
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"Cosmo Centro","businessType":"CAFE"}'
 
+# 4. Login eligiendo el store activo → JWT con storeId
+curl -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@cosmo.com","password":"secret1","storeId":1}'
+
+# 5. Catálogo: category → product → inventory
 curl -X POST http://localhost:8080/api/categories \
-  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
-  -d '{"name":"Coffee","storeId":1}'
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"name":"Coffee"}'
 
 curl -X POST http://localhost:8080/api/products \
-  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"name":"Espresso","price":3.50,"categoryId":1}'
 
 curl -X PUT http://localhost:8080/api/inventory/1 \
-  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"quantity":10}'
 
-# 3. El cliente crea una orden (con token CUSTOMER)
+# 6. Orden desde caja (storeId sale del JWT, no del body)
 curl -X POST http://localhost:8080/api/orders \
-  -H "Authorization: Bearer $CUSTOMER_TOKEN" -H "Content-Type: application/json" \
-  -d '{"storeId":1,"items":[{"productId":1,"quantity":2}]}'
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"channel":"POS","orderType":"DINE_IN","paymentMethod":"CASH","items":[{"productId":1,"quantity":2}]}'
 
-# 4. El staff avanza el estado de la orden
+# 7. Cocina avanza el estado
 curl -X PATCH http://localhost:8080/api/orders/1/status \
-  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -d '{"status":"CONFIRMED"}'
 ```
 
@@ -81,24 +87,32 @@ curl -X PATCH http://localhost:8080/api/orders/1/status \
 
 ```text
 src/main/java/com/store/platform/
-├── auth/         # register + login (JWT)
+├── auth/         # register (primer ADMIN) + login (elige storeId)
 ├── category/     # CRUD categories
+├── client/       # Client (tenant) + límites del plan
 ├── common/       # ErrorResponse + GlobalExceptionHandler
 ├── config/       # OpenAPI/Swagger config
 ├── inventory/    # stock por producto (1:1)
 ├── order/        # Order + OrderItem + máquina de estados
-├── product/      # CRUD products
-├── security/     # JWT filter/service + SecurityConfig
-├── store/        # CRUD stores
-└── user/         # User entity + roles
+├── product/      # CRUD products + active toggle + tokenCost
+├── security/     # JWT filter/service + SecurityConfig (claims: clientId/storeId/role)
+├── store/        # CRUD stores + devices (cajas/kioskos por plan)
+└── user/         # User entity + roles + user_stores
 ```
 
 ## Reglas de negocio implementadas
 
-- Orden valida: store existe, productos pertenecen a esa store y están activos,
-  stock suficiente → descuenta inventario en la misma transacción.
-- Items duplicados en la misma orden se fusionan sumando cantidades.
-- Estados: `PENDING → CONFIRMED → PREPARING → READY → COMPLETED`
-  (`CANCELLED` permitido desde `PENDING`/`CONFIRMED` y restaura inventario).
-- Clientes solo ven sus propias órdenes; staff las ve todas (o filtra por store).
-- GET del catálogo (stores/categories/products) es público; mutaciones requieren rol.
+- Multi-tenant: `clientId` y `storeId` viajan en el JWT; nunca se confía en
+  IDs del body. El `?storeId=` opcional solo lo puede usar el ADMIN (stores de
+  su cliente); el resto opera sobre su store de sesión.
+- Plan del cliente limita: `maxStores`, `maxPosPerStore`, `maxKiosksPerStore`
+  (tabla `devices` cuenta lo registrado).
+- Orden valida: productos activos y del store de la sesión, stock suficiente →
+  descuenta inventario en la misma transacción. Items duplicados se fusionan.
+- `channel=KIOSK` solo acepta `CARD`; cuentas `CUSTOMER` solo crean órdenes
+  `KIOSK` (cuenta genérica del kiosko ligada a su store).
+- Estados: `PENDING → CONFIRMED → PREPARING → READY → COMPLETED`;
+  `CANCELLED` hasta `PREPARING` inclusive — restaura inventario y marca
+  `refund_status = REFUNDED` (refund manual por staff).
+- Roles: mutaciones de catálogo requieren `ADMIN`/`MANAGER`; crear usuarios y
+  stores/devices solo `ADMIN`; PATCH de estado de orden lo hace staff.

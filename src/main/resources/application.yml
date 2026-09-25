@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: store-platform
+  datasource:
+    url: jdbc:postgresql://localhost:5433/storedb
+    username: store
+    password: store
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+app:
+  jwt:
+    # ponytail: dev default, override with JWT_SECRET in real environments
+    secret: ${JWT_SECRET:dev-only-secret-key-change-me-in-production-0123456789abcdef}
+    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
