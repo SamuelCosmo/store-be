@@ -70,3 +70,11 @@ La cocina ve las órdenes confirmadas del establecimiento y las marca con botone
 - `PREPARING` — la orden está en preparación
 - `READY` — la orden está lista para entregar
 - `CANCELLED` — la orden se cancela (restaura inventario)
+
+## Extras del cliente
+
+Además del flujo base, el cliente pidió: **fichas para bebidas** (compra en
+caja, canje en barra), **reportes de admin** (ventas del día, top productos,
+top empleado), **sección de barra**, **impresión de tickets** y
+**reservación de mesas y barra** (6 sillas). Spec completa en
+[15-client-extras](15-client-extras.md).

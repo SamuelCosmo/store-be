@@ -32,6 +32,13 @@ Client (tenant: restaurante, café, etc.)
 - `inventory`
 - `orders`
 - `order_items`
+- `token_wallets` *(extras del cliente — saldo de fichas; ver [15](15-client-extras.md))*
+- `token_transactions` *(movimientos de fichas: PURCHASE/REDEMPTION/ADJUSTMENT)*
+- `tables` *(mesas y sillas de barra; `zone`: `DINING`/`BAR`)*
+- `reservations` *(reservación de mesas y sillas de barra)*
+- `tickets` *(folio impreso por orden/transacción — opcional)*
+- `client_modules` *(módulos contratados por el cliente; ver [16](16-modules-and-permissions.md))*
+- `user_modules` *(módulos asignados a cada usuario, ⊆ `client_modules`)*
 
 > **Nota de implementación:** `customers` se modela como `users` con rol
 > `CUSTOMER`. Si más adelante se separan, se crea la tabla `customers` propia.
@@ -41,15 +48,30 @@ Client (tenant: restaurante, café, etc.)
 | Tabla         | Relación / columnas extra                                     |
 | ------------- | ------------------------------------------------------------- |
 | `clients`     | 1:N → `stores` (el cliente tiene varios establecimientos)     |
-| `stores`      | FK → `clients`                                                |
+| `stores`      | FK → `clients`, `business_type` (RESTAURANT/RETAIL/BAR/CAFE)  |
+|               | — preset de módulos sugerido por giro                         |
 | `users`       | FK opcional → `stores` (empleados/managers/admin)             |
+| `client_modules` | FK → `clients`, `module` — módulos comprados por el cliente |
+| `user_modules`   | FK → `users`, `module` — ⊆ `client_modules` del cliente    |
 | `categories`  | FK → `stores`                                                 |
-| `products`    | FK → `categories`, columna `active` (visible en caja/kiosko)  |
+| `products`    | FK → `categories`, columna `active` (visible en caja/kiosko), |
+|               | `token_cost` — si > 0, canjeable con fichas (bebidas)         |
 | `inventory`   | FK único → `products` (1:1)                                   |
 | `orders`      | FK → `stores`, FK → `users` (customer/staff que la creó),     |
 |               | `channel` (POS/KIOSK), `order_type` (DINE_IN/TAKEAWAY),       |
 |               | `payment_method` (CASH/CARD)                                  |
 | `order_items` | FK → `orders`, FK → `products`                                |
+| `token_wallets`     | FK → `stores`, FK → `users` (CUSTOMER), `balance`           |
+| `token_transactions`| FK → `token_wallets`, `type` (PURCHASE/REDEMPTION/            |
+|                     | ADJUSTMENT), `quantity`, FK → `users` (staff que vendió),     |
+|                     | FK opcional → `products` (bebida canjeada)                    |
+| `tables`      | FK → `stores`, `zone` (DINING/BAR), `seats`, `number` —       |
+|               | la barra son 6 registros con `zone=BAR`, `seats=1`            |
+| `reservations`| FK → `tables`, `date`, `time_slot`, `party_size`,             |
+|               | `customer_name`, `phone`, `status` (PENDING/CONFIRMED/        |
+|               | SEATED/CANCELLED/NO_SHOW) — sin solapamientos por mesa        |
+| `tickets`     | FK → `orders` (o `token_transactions`), `ticket_number`       |
+|               | consecutivo por `stores`, `printed_at`                        |
 
 ## Integridad multi-tenant
 

@@ -19,6 +19,8 @@ y extendida con el modelo de negocio multi-tenant).
 12. [Interview Topics](12-interview-topics.md)
 13. [Frontend Screens / Surfaces](13-frontend-screens.md)
 14. [Frontend Integration Guide](14-frontend-integration.md) *(repo Next.js separado)*
+15. [Extras del cliente](15-client-extras.md) *(fichas, reportes, barra, tickets, reservaciones)*
+16. [Módulos y permisos por cliente](16-modules-and-permissions.md) *(producto modular: módulos contratados por tenant y asignados por usuario)*
 
 ## Resumen
 
@@ -36,6 +38,12 @@ Superficies de usuario:
   tarjeta.
 - **Pantalla de cocina (KDS)** — recibe las órdenes y las marca como en
   preparación, listas o canceladas.
+- **Barra** *(extra del cliente)* — el bartender ve las bebidas pendientes y
+  los canjes de fichas.
 - **Login** — pantalla de inicio de sesión para staff/admin.
+
+Extras solicitados por el cliente ([spec](15-client-extras.md)): fichas para
+bebidas, reportes de ventas (del día, top productos, top empleado), impresión
+de tickets y reservación de mesas y barra (6 sillas).
 
 **Goal:** Learn, practice and sell the application.

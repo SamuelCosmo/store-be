@@ -1,7 +1,7 @@
 # 13. Frontend Screens / Surfaces
 
-El producto tiene 5 superficies de usuario. Todas consumen la misma REST API del
-monolito modular.
+El producto tiene 5 superficies de usuario (+ **Barra** como extra del cliente).
+Todas consumen la misma REST API del monolito modular.
 
 > **Acceso por rol:** cada tipo de usuario solo ve y opera las pantallas de su
 > módulo. El admin solo accede al panel de administración, cocina solo al KDS,
@@ -10,10 +10,10 @@ monolito modular.
 > Matriz completa en [02-authentication](02-authentication.md#acceso-a-módulos-por-rol).
 
 ```text
-┌──────────┐  ┌─────────────┐  ┌────────────┐  ┌─────────┐  ┌─────────────┐
-│  Login   │  │ Admin Panel │  │ Caja (POS) │  │ Kiosko  │  │ Cocina(KDS) │
-└────┬─────┘  └──────┬──────┘  └─────┬──────┘  └────┬────┘  └──────┬──────┘
-     └───────────────┴───────┬───────┴──────────────┴──────────────┘
+┌──────────┐  ┌─────────────┐  ┌────────────┐  ┌─────────┐  ┌─────────────┐  ┌────────┐
+│  Login   │  │ Admin Panel │  │ Caja (POS) │  │ Kiosko  │  │ Cocina(KDS) │  │ Barra  │
+└────┬─────┘  └──────┬──────┘  └─────┬──────┘  └────┬────┘  └──────┬──────┘  └───┬────┘
+     └───────────────┴───────┬───────┴──────────────┴──────────────┴─────────────┘
                              ▼
                      REST API (modular monolith)
                              ▼
@@ -41,6 +41,11 @@ Funciones:
   (solo los activos se muestran en caja y kiosko)
 - Configurar **inventario** → `PUT /api/inventory/{productId}`
 - Gestión de **establecimientos** del cliente → `POST/PUT /api/stores`
+- **Reportes** *(extra del cliente)* → ventas del día, productos más
+  vendidos y ventas por empleado (`GET /api/reports/...`)
+- **Mesas y reservaciones** *(extra del cliente)* → alta de mesas/sillas de
+  barra (`POST /api/tables`) y gestión de reservaciones
+  (`GET/POST/PATCH /api/reservations`)
 
 Rol: `ADMIN` (y `MANAGER` para operación del catálogo).
 
@@ -53,6 +58,8 @@ Pantalla operada por staff para tomar órdenes en el mostrador.
 - Tipo de orden: **Comer aquí** (`DINE_IN`) o **Para llevar** (`TAKEAWAY`)
 - Pago: **efectivo** (`CASH`) o **tarjeta** (`CARD`)
 - Envía `POST /api/orders` con `channel: POS`
+- **Venta de fichas** *(extra del cliente)* → `POST /api/tokens/purchase`
+- **Imprime ticket** de la orden → `GET /api/orders/{id}/ticket`
 
 Rol: `EMPLOYEE` / `MANAGER`.
 
@@ -83,12 +90,26 @@ Recibe las órdenes del establecimiento y muestra su estado en tiempo real.
 
 Rol: `EMPLOYEE` / `MANAGER` (cocina).
 
+## 6. Barra *(extra del cliente)*
+
+Pantalla del bartender, análoga al KDS: muestra los items de bebida de las
+órdenes confirmadas y los canjes de fichas pendientes de entregar.
+
+- Lista items de bebida: `GET /api/bar/items?status=`
+- Marca item entregado: `PATCH /api/bar/items/{id}/status`
+- Canje de fichas por bebida: `POST /api/tokens/redeem`
+
+Rol: `EMPLOYEE` / `MANAGER` (barra).
+
 ## Resumen por superficie
 
 | Superficie  | Rol             | Endpoints principales                              |
 | ----------- | --------------- | -------------------------------------------------- |
 | Login       | todos           | `POST /api/auth/login`, `register`                 |
-| Admin Panel | ADMIN, MANAGER  | CRUD stores/categories/products, inventory, active |
-| Caja (POS)  | EMPLOYEE        | `POST /api/orders` (CASH/CARD, DINE_IN/TAKEAWAY)   |
+| Admin Panel | ADMIN, MANAGER  | CRUD stores/categories/products, inventory, active, |
+|             |                 | reportes, mesas y reservaciones                    |
+| Caja (POS)  | EMPLOYEE        | `POST /api/orders` (CASH/CARD, DINE_IN/TAKEAWAY),  |
+|             |                 | venta de fichas, ticket                            |
 | Kiosko      | CUSTOMER        | `POST /api/orders` (solo CARD)                     |
 | Cocina      | EMPLOYEE        | `GET /api/orders`, `PATCH .../status`              |
+| Barra       | EMPLOYEE        | `GET /api/bar/items`, `PATCH .../status`, canjes   |

@@ -75,3 +75,31 @@ Requerimientos del modelo de negocio (ver [13-frontend-screens](13-frontend-scre
 - [ ] Pantalla **Cocina (KDS)**: ver órdenes y marcar PREPARING/READY/CANCELLED
 - [ ] **CORS** para el frontend Next.js (`localhost:3000` en dev) —
       ver [14-frontend-integration](14-frontend-integration.md)
+
+## Extras solicitados por el cliente
+
+Ver spec completa en [15-client-extras](15-client-extras.md):
+
+- [ ] **Sistema de fichas para bebidas**: compra en caja
+      (`POST /api/tokens/purchase`), saldo por customer (`token_wallets`),
+      canje por bebidas (`POST /api/tokens/redeem`, productos con
+      `tokenCost > 0`)
+- [ ] **Reportes admin**: ventas del día, productos más vendidos y ventas
+      por empleado (`GET /api/reports/...`)
+- [ ] **Sección de barra**: pantalla de items de bebida pendientes +
+      canjes (`GET /api/bar/items`)
+- [ ] **Impresión de tickets**: `GET /api/orders/{id}/ticket` con folio por
+      establecimiento
+- [ ] **Reservaciones**: mesas y barra (6 sillas, `zone=BAR`),
+      `POST /api/reservations` con estados PENDING/CONFIRMED/SEATED/
+      CANCELLED/NO_SHOW
+
+## Producto modular (multi-giro)
+
+Ver spec en [16-modules-and-permissions](16-modules-and-permissions.md):
+
+- [ ] `stores.business_type` + preset de módulos por giro
+- [ ] `client_modules` — módulos contratados por el cliente (plataforma)
+- [ ] `user_modules` — subconjunto asignado por el admin del cliente
+- [ ] Claims de módulos en el JWT + `@PreAuthorize` por módulo
+- [ ] Enrutado del frontend por rol + módulos efectivos

@@ -1,14 +1,4 @@
 # ============================================
-# TEMPORARY — first commit: docs only
-# Delete this whole block when you start
-# committing code (the sections below stay).
-# ============================================
-*
-!*/
-!*.md
-!.gitignore
-
-# ============================================
 # Spring Boot / Maven
 # ============================================
 HELP.md

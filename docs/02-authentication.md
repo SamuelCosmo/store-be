@@ -33,13 +33,22 @@ Cada tipo de usuario solo ve y opera los módulos/pantallas que le corresponden.
 El frontend oculta las rutas no autorizadas y el backend las refuerza con
 `@PreAuthorize` (doble barrera: UX + seguridad real).
 
+> **Modelo modular:** los módulos se venden por cliente y el admin del
+> cliente asigna subconjuntos a sus usuarios (`user_modules ⊆
+> client_modules`). La matriz de abajo es el **preset del giro restaurante**;
+> ver [16-modules-and-permissions](16-modules-and-permissions.md).
+
 | Módulo / Pantalla      | ADMIN | MANAGER | EMPLOYEE | CUSTOMER |
 | ---------------------- | :---: | :-----: | :------: | :------: |
 | Login                  |  ✓    |    ✓    |    ✓     |    ✓     |
 | Panel Admin (catálogo) |  ✓    |    ✓    |    —     |    —     |
+| Reportes (ventas)      |  ✓    |    ✓    |    —     |    —     |
 | Caja (POS)             |  ✓    |    ✓    |    ✓     |    —     |
 | Kiosko (pedidos)       |  —    |    —    |    —     |    ✓     |
 | Cocina (KDS)           |  —    |    ✓    |    ✓     |    —     |
+| Barra                  |  —    |    ✓    |    ✓     |    —     |
+| Reservaciones          |  ✓    |    ✓    |    ✓     |    —     |
+| Fichas (compra/canje)  |  ✓    |    ✓    |    ✓     | saldo ✓  |
 
 Ejemplos de la regla:
 
