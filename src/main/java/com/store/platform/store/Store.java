@@ -28,9 +28,15 @@ public class Store {
 
     private String description;
 
+    private String address;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BusinessType businessType;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

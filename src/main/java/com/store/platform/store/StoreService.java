@@ -37,7 +37,9 @@ public class StoreService {
                 .client(client)
                 .name(request.name())
                 .description(request.description())
+                .address(request.address())
                 .businessType(request.businessType())
+                .active(request.active() == null || request.active())
                 .build();
         return StoreResponse.from(storeRepository.save(store));
     }
@@ -57,7 +59,9 @@ public class StoreService {
         Store store = findOwnedOrThrow(id, clientId);
         store.setName(request.name());
         store.setDescription(request.description());
+        store.setAddress(request.address());
         store.setBusinessType(request.businessType());
+        if (request.active() != null) store.setActive(request.active());
         return StoreResponse.from(storeRepository.save(store));
     }
 

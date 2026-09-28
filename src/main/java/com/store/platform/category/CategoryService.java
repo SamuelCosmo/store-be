@@ -43,6 +43,7 @@ public class CategoryService {
         return CategoryResponse.from(categoryRepository.save(category));
     }
 
+    @Transactional(readOnly = true)
     public List<CategoryResponse> list(Long storeId) {
         AuthUser auth = AuthContext.current();
         if (storeId != null) {
@@ -62,6 +63,7 @@ public class CategoryService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public CategoryResponse getById(Long id) {
         return CategoryResponse.from(findScopedOrThrow(id));
     }
@@ -89,6 +91,7 @@ public class CategoryService {
     }
 
     /** Category must be assigned to a store the caller may operate. */
+    @Transactional(readOnly = true)
     public Category findScopedOrThrow(Long id) {
         Category category = categoryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));

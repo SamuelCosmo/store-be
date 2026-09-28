@@ -7,5 +7,7 @@ import jakarta.validation.constraints.NotNull;
 public record StoreRequest(
         @NotBlank String name,
         String description,
-        @NotNull Store.BusinessType businessType) {
+        String address,
+        @NotNull Store.BusinessType businessType,
+        Boolean active) {
 }

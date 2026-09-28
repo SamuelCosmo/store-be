@@ -9,7 +9,9 @@ public record StoreResponse(
         Long clientId,
         String name,
         String description,
+        String address,
         Store.BusinessType businessType,
+        boolean active,
         Instant createdAt) {
 
     public static StoreResponse from(Store store) {
@@ -18,7 +20,9 @@ public record StoreResponse(
                 store.getClient().getId(),
                 store.getName(),
                 store.getDescription(),
+                store.getAddress(),
                 store.getBusinessType(),
+                store.isActive(),
                 store.getCreatedAt());
     }
 }
