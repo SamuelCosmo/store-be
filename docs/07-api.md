@@ -68,6 +68,7 @@ PATCH  /api/orders/{id}/status
   "channel": "POS | KIOSK",
   "orderType": "DINE_IN | TAKEAWAY",
   "paymentMethod": "CASH | CARD",
+  "cashReceived": 100.00,
   "items": [{ "productId": 1, "quantity": 2 }]
 }
 ```
@@ -75,6 +76,8 @@ PATCH  /api/orders/{id}/status
 **Reglas:**
 
 - `channel = KIOSK` ⇒ `paymentMethod` solo `CARD`.
+- `paymentMethod = CASH` ⇒ `cashReceived` requerido y `>= total` — la respuesta
+  incluye `changeGiven` (cambio a devolver).
 - `storeId` **no va en el body** — se deriva de la sesión autenticada (kiosko
   ligado al establecimiento por login, staff ligado a su tienda).
 
