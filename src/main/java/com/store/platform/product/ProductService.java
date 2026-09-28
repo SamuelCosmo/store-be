@@ -6,6 +6,7 @@ import com.store.platform.common.exception.ResourceNotFoundException;
 import com.store.platform.product.dto.ProductRequest;
 import com.store.platform.product.dto.ProductResponse;
 import com.store.platform.security.AuthContext;
+import com.store.platform.security.AuthUser;
 import com.store.platform.store.StoreService;
 import com.store.platform.user.User;
 import lombok.RequiredArgsConstructor;
@@ -38,18 +39,24 @@ public class ProductService {
 
     public List<ProductResponse> list(Long storeId, Long categoryId, Boolean activeOnly) {
         // kiosk/customer sessions only ever see active products
+        AuthUser auth = AuthContext.current();
         boolean onlyActive = Boolean.TRUE.equals(activeOnly)
-                || AuthContext.current().role() == User.Role.CUSTOMER;
+                || auth.role() == User.Role.CUSTOMER;
         if (categoryId != null) {
             categoryService.findScopedOrThrow(categoryId);
             return map(onlyActive
                     ? productRepository.findByCategoryIdAndActiveTrue(categoryId)
                     : productRepository.findByCategoryId(categoryId));
         }
+        if (storeId == null && auth.storeId() == null && auth.role() == User.Role.ADMIN) {
+            return map(onlyActive
+                    ? productRepository.findDistinctByCategory_Stores_Client_IdAndActiveTrue(auth.clientId())
+                    : productRepository.findDistinctByCategory_Stores_Client_Id(auth.clientId()));
+        }
         Long scope = storeService.resolveScope(storeId);
         return map(onlyActive
-                ? productRepository.findByCategoryStoreIdAndActiveTrue(scope)
-                : productRepository.findByCategoryStoreId(scope));
+                ? productRepository.findByCategoryStores_IdAndActiveTrue(scope)
+                : productRepository.findByCategoryStores_Id(scope));
     }
 
     public ProductResponse getById(Long id) {
@@ -84,7 +91,10 @@ public class ProductService {
     public Product findScopedOrThrow(Long id) {
         Product product = productRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + id));
-        storeService.resolveScope(product.getCategory().getStore().getId());
+        storeService.resolveScope(product.getCategory().getStores().stream()
+                .map(com.store.platform.store.Store::getId)
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Category has no stores: " + id)));
         return product;
     }
 

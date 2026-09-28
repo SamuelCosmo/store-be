@@ -79,7 +79,7 @@ public class OrderService {
 
         BigDecimal total = BigDecimal.ZERO;
         for (Product product : products) {
-            if (!product.getCategory().getStore().getId().equals(storeId)) {
+            if (product.getCategory().getStores().stream().noneMatch(s -> s.getId().equals(storeId))) {
                 throw new BusinessException("Product does not belong to this store: " + product.getName());
             }
             if (!product.isActive()) {

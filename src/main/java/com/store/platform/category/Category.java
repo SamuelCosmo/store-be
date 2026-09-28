@@ -4,6 +4,9 @@ import com.store.platform.store.Store;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Entity
 @Table(name = "categories")
 @Getter
@@ -17,12 +20,22 @@ public class Category {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "store_id", nullable = false)
-    private Store store;
+    @ManyToMany
+    @JoinTable(
+            name = "category_stores",
+            joinColumns = @JoinColumn(name = "category_id"),
+            inverseJoinColumns = @JoinColumn(name = "store_id"))
+    @Builder.Default
+    private Set<Store> stores = new HashSet<>();
 
     @Column(nullable = false)
     private String name;
 
     private String description;
+
+    private String icon;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean active = true;
 }
