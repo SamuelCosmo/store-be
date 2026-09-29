@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
+// TODO: cashReceived for CASH payments (compute changeGiven on the response)
 public record OrderRequest(
         @NotNull Order.Channel channel,
         @NotNull Order.OrderType orderType,

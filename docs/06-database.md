@@ -5,13 +5,18 @@
 ```text
 Client (tenant: restaurante, café, etc.)
  │
+ ├── Extra / Size          ← catálogos a nivel CLIENTE (reutilizables)
+ │
  └── Store / Establishment  ← un cliente puede tener varios
         │
         ├── User            ← ligado al client; opera 1..N stores (user_stores)
         │
-        ├── Category
+        ├── Category        ← N:M con stores (category_stores)
         │      │
         │      └── Product  ← flag `active` controla visibilidad en caja/kiosko
+        │              │
+        │              ├── N:M → Extra  (product_extras)
+        │              └── N:M → Size   (product_sizes)
         │
         ├── Inventory       ← 1:1 con Product
         │
@@ -19,7 +24,7 @@ Client (tenant: restaurante, café, etc.)
                │
                └── OrderItem
                        │
-                       └── Product
+                       └── Product   ← TODO: sizeId/extraIds por item
 ```
 
 ## Tablas
@@ -29,8 +34,12 @@ Client (tenant: restaurante, café, etc.)
 - `users` *(FK → `clients`; staff/admin/kiosko)*
 - `user_stores` *(N:M — en qué establecimientos del cliente opera el usuario;
   el ADMIN puede tener varios)*
-- `categories`
+- `categories` *(N:M con stores via `category_stores`)*
 - `products`
+- `extras` *(catálogo del cliente; `price` = cargo adicional)*
+- `sizes` *(catálogo del cliente; `price` = cargo adicional sobre el base)*
+- `product_extras` *(join N:M products↔extras)*
+- `product_sizes` *(join N:M products↔sizes)*
 - `inventory`
 - `orders`
 - `order_items`
@@ -57,9 +66,14 @@ Client (tenant: restaurante, café, etc.)
 | `user_stores` | FK → `users`, FK → `stores` — stores del mismo `client_id`    |
 | `client_modules` | FK → `clients`, `module` — módulos comprados por el cliente |
 | `user_modules`   | FK → `users`, `module` — ⊆ `client_modules` del cliente    |
-| `categories`  | FK → `stores`                                                 |
-| `products`    | FK → `categories`, columna `active` (visible en caja/kiosko), |
-|               | `token_cost` — si > 0, canjeable con fichas (bebidas)         |
+| `categories`  | N:M → `stores` via `category_stores` (una categoría puede      |
+|               | existir en varios establecimientos), `icon`, `active`        |
+| `extras`      | FK → `clients` (catálogo del tenant), `name`, `price`, `active` |
+| `sizes`       | FK → `clients` (catálogo del tenant), `name`, `price`, `active` |
+| `products`    | FK → `categories`, `active` (visible en caja/kiosko),         |
+|               | `sku`, `image` (URL — upload pendiente),                    |
+|               | `token_cost` — si > 0, canjeable con fichas (bebidas);        |
+|               | N:M → `extras`/`sizes` via `product_extras`/`product_sizes` |
 | `inventory`   | FK único → `products` (1:1)                                   |
 | `orders`      | FK → `stores`, FK → `users` (staff, o cuenta genérica del     |
 |               | kiosko),                                                      |

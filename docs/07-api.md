@@ -1,62 +1,135 @@
 # 9. API Happy Path
 
-## Authentication
+Estado real al 2026-09-28 — lo marcado *(pendiente)* está documentado pero
+sin implementar.
+
+## Authentication ✅
 
 ```text
-POST   /api/auth/register
-POST   /api/auth/login
+POST   /api/auth/register       # solo crea el PRIMER usuario (ADMIN) del tenant
+POST   /api/auth/login          # { email, password, storeId } → { token, role, ... }
 ```
 
-## Clients (tenants) *(pendiente de implementar)*
+## Clients (tenants) ✅
 
 ```text
-POST   /api/clients
+POST   /api/clients             # abierto en dev — TODO: platform-admin only
 GET    /api/clients/{id}
 GET    /api/clients/{id}/stores
 ```
 
-## Stores / Establishments
+## Stores / Establishments ✅
 
 ```text
-POST   /api/stores            # ligado a un clientId
-GET    /api/stores
+POST   /api/stores              # ligado a un clientId
 GET    /api/stores/{id}
-PUT    /api/stores/{id}
+PUT    /api/stores/{id}         # name, description, address, businessType, active
+GET    /api/clients/{id}/stores # listado por cliente (la lista del admin)
+POST   /api/stores/{id}/devices # alta de POS/KIOSK por tienda
+GET    /api/stores/{id}/devices
 ```
 
-## Categories
+- `active` default `true` al dar de alta; sin DELETE (activar/desactivar).
+- Los admins sin `storeId` en su JWT ven todo el catálogo del cliente;
+  los demás roles operan solo su tienda de sesión.
+
+## Categories ✅
 
 ```text
 POST   /api/categories
-GET    /api/categories        # ?storeId=
+GET    /api/categories          # ?storeId= opcional (ADMIN puede filtrar)
 GET    /api/categories/{id}
 PUT    /api/categories/{id}
 DELETE /api/categories/{id}
 ```
 
-## Products
+- **Multi-tienda**: `storeIds[]` en request/response (tabla `category_stores`),
+  no un `store_id` único. Admin sin tienda debe mandar `storeIds`.
+- Campos: `name`, `description`, `icon` (string, mappeado en el frontend),
+  `active` (default `true`).
+
+## Products ✅
 
 ```text
 POST   /api/products
-GET    /api/products          # ?storeId=&categoryId=
+GET    /api/products            # ?storeId=&categoryId=&activeOnly=
 GET    /api/products/{id}
 PUT    /api/products/{id}
 PATCH  /api/products/{id}/active   # activar/desactivar para caja y kiosko
 DELETE /api/products/{id}
 ```
 
-## Inventory
+```json
+// ProductRequest
+{
+  "categoryId": 1,
+  "name": "Ramen de chashu",
+  "description": "...",
+  "sku": "KFR-TON",
+  "image": "https://…",          // TODO: upload service (Azure Blob)
+  "price": 239.00,
+  "tokenCost": 0,
+  "sizeIds": [1, 2],
+  "extraIds": [3]
+}
+```
+
+- `sku` e `image` opcionales; `tokenCost > 0` = canjeable con fichas.
+- `sizes`/`extras` se resuelven en la response; asignación también desde el
+  lado del catálogo vía `productIds`.
+
+## Extras ✅ *(nuevo — catálogo a nivel cliente)*
+
+```text
+POST   /api/extras
+GET    /api/extras
+PUT    /api/extras/{id}
+DELETE /api/extras/{id}         # desasocia de productos antes de borrar
+```
+
+```json
+{ "name": "Chashu extra", "price": 25.00, "active": true, "productIds": [1, 4] }
+```
+
+## Sizes ✅ *(nuevo — catálogo a nivel cliente)*
+
+```text
+POST   /api/sizes
+GET    /api/sizes
+PUT    /api/sizes/{id}
+DELETE /api/sizes/{id}
+```
+
+```json
+{ "name": "Grande", "price": 20.00, "active": true, "productIds": [1] }
+```
+
+- `price` es **cargo adicional** sobre el precio base (0 = mismo precio).
+- Asignación se hace desde el producto (`sizeIds`) o desde el tamaño
+  (`productIds`) — ambas direcciones reconcilian la misma join table.
+
+## Users ✅ *(parcial)*
+
+```text
+POST   /api/users               # alta de usuarios del cliente
+GET    /api/users
+```
+
+- TODO: asignación de tiendas (`user_stores`) y módulos por usuario;
+  `PUT /api/users/{id}/modules` documentado pero pendiente.
+
+## Inventory ✅
 
 ```text
 GET    /api/inventory/{productId}
 PUT    /api/inventory/{productId}
 ```
 
-## Orders
+## Orders ✅ *(parcial)*
 
 ```text
 POST   /api/orders
-GET    /api/orders            # ?storeId=&status= (pantalla de cocina filtra por estado)
+GET    /api/orders              # ?storeId=&status= (la cocina filtra por estado)
 GET    /api/orders/{id}
 PATCH  /api/orders/{id}/status
 ```
@@ -68,28 +141,28 @@ PATCH  /api/orders/{id}/status
   "channel": "POS | KIOSK",
   "orderType": "DINE_IN | TAKEAWAY",
   "paymentMethod": "CASH | CARD",
-  "cashReceived": 100.00,
   "items": [{ "productId": 1, "quantity": 2 }]
 }
 ```
 
-**Reglas:**
+**Reglas implementadas:**
 
 - `channel = KIOSK` ⇒ `paymentMethod` solo `CARD`.
-- `paymentMethod = CASH` ⇒ `cashReceived` requerido y `>= total` — la respuesta
-  incluye `changeGiven` (cambio a devolver).
-- `storeId` **no va en el body** — se deriva de la sesión autenticada (kiosko
-  ligado al establecimiento por login, staff ligado a su tienda).
+- `storeId` **no va en el body** — se deriva de la sesión autenticada.
+- Validación: productos activos y pertenecientes al store de sesión;
+  descuenta inventario en la misma transacción; items duplicados se fusionan.
+- `CANCELLED` permitido hasta `PREPARING` inclusive → restaura inventario y
+  `refund_status = REFUNDED` (reembolso manual por staff).
+- Transiciones: `PENDING → CONFIRMED → PREPARING → READY → COMPLETED`.
 
-### PATCH /api/orders/{id}/status
+**Pendiente en órdenes:**
 
-```json
-{ "status": "PENDING | CONFIRMED | PREPARING | READY | COMPLETED | CANCELLED" }
-```
+- TODO: `cashReceived`/`changeGiven` para pago en efectivo (doc viejo lo
+  mencionaba; no implementado).
+- TODO: items con `sizeId`/`extraIds` — la orden no captura tamaño ni extras.
+- TODO: `GET /api/orders/{id}/ticket` — payload para impresión.
 
-Usado por la pantalla de cocina: `PREPARING`, `READY`, `CANCELLED`.
-
-## Tokens (fichas para bebidas) *(extras del cliente)*
+## Tokens (fichas para bebidas) *(pendiente de implementar)*
 
 ```text
 POST   /api/tokens/purchase     # { quantity, paymentMethod } — venta en caja
@@ -100,7 +173,7 @@ POST   /api/tokens/redeem       # { productId, quantity } — canje en barra
 solo productos con `tokenCost > 0` son canjeables; el canje descuenta
 inventario; compra y canje quedan ligados al staff autenticado que los operó.
 
-## Reports *(extras del cliente — ADMIN/MANAGER)*
+## Reports *(pendiente de implementar — ADMIN/MANAGER)*
 
 ```text
 GET    /api/reports/sales/daily?date=              # ventas del día
@@ -108,15 +181,14 @@ GET    /api/reports/top-products?from=&to=&limit=  # productos más vendidos
 GET    /api/reports/sales-by-employee?from=&to=    # quién vendió más
 ```
 
-## Bar *(extras del cliente)*
+## Bar *(pendiente de implementar)*
 
 ```text
 GET    /api/bar/items?status=           # bebidas pendientes de órdenes y canjes
 PATCH  /api/bar/items/{id}/status       # marcar entregado
-GET    /api/orders/{id}/ticket          # payload del ticket para impresión
 ```
 
-## Tables & Reservations *(extras del cliente)*
+## Tables & Reservations *(pendiente de implementar)*
 
 ```text
 GET    /api/tables?zone=                     # mesas y sillas de barra
@@ -130,3 +202,11 @@ PATCH  /api/reservations/{id}/status         # CONFIRMED/SEATED/CANCELLED/NO_SHO
 
 **Reglas:** la barra son 6 sillas (`zone=BAR`); no se permiten reservaciones
 solapadas sobre la misma mesa/silla.
+
+## Módulos por cliente *(pendiente de implementar)*
+
+```text
+PUT    /api/clients/{id}/modules   # plataforma: módulos contratados
+PUT    /api/users/{id}/modules     # admin: subconjunto ⊆ client_modules
+GET    /api/modules/available
+```

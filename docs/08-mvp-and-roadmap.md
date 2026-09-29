@@ -59,27 +59,40 @@ The first MVP is complete when:
 
 Requerimientos del modelo de negocio (ver [10-frontend-screens](10-frontend-screens.md)):
 
-- [ ] Entidad `Client` (tenant): el cliente puede tener varios establecimientos
-- [ ] `users` con FK → `clients` + `user_stores` (un usuario opera 1..N stores
+- [x] Entidad `Client` (tenant): el cliente puede tener varios establecimientos
+- [x] `users` con FK → `clients` + `user_stores` (un usuario opera 1..N stores
       de su cliente)
-- [ ] `Store` enlazado a `Client` (FK); órdenes acotadas por establecimiento
-- [ ] Endpoint para activar/desactivar productos (`PATCH /api/products/{id}/active`)
-- [ ] `Order` con `channel` (`POS`/`KIOSK`), `orderType` (`DINE_IN`/`TAKEAWAY`)
+- [x] `Store` enlazado a `Client` (FK); órdenes acotadas por establecimiento
+- [x] Endpoint para activar/desactivar productos (`PATCH /api/products/{id}/active`)
+- [x] `Order` con `channel` (`POS`/`KIOSK`), `orderType` (`DINE_IN`/`TAKEAWAY`)
       y `paymentMethod` (`CASH`/`CARD`)
-- [ ] Regla: en `KIOSK` solo se permite pago con `CARD`
-- [ ] Sesión de kiosko ligada al establecimiento (cuenta `CUSTOMER` genérica);
+- [x] Regla: en `KIOSK` solo se permite pago con `CARD`
+- [x] Sesión de kiosko ligada al establecimiento (cuenta `CUSTOMER` genérica);
       `storeId` derivado del JWT, no del body
-- [ ] Cancelación hasta `PREPARING` + `refund_status` en `orders`
-- [ ] `GET /api/orders` filtrable por `storeId` y `status` (pantalla de cocina)
-- [ ] Pantalla de **Login**
+- [x] Cancelación hasta `PREPARING` + `refund_status` en `orders`
+- [x] `GET /api/orders` filtrable por `storeId` y `status` (pantalla de cocina)
+- [x] Categorías multi-tienda (`category_stores`, `storeIds[]`), `icon`, `active`
+- [x] `stores.address` + `stores.active` (activar/desactivar establecimiento)
+- [x] Catálogo de **extras** a nivel cliente (`/api/extras`) asignable a
+      productos N:M (`product_extras`)
+- [x] Catálogo de **tamaños** a nivel cliente (`/api/sizes`) asignable a
+      productos N:M (`product_sizes`); `price` = cargo adicional
+- [x] `products.sku` + `products.image` (URL; upload pendiente)
+- [x] Pantalla de **Login** (frontend `/`)
 - [ ] Enrutado por rol: cada usuario solo ve las pantallas de su módulo
-      (matriz en [02-authentication](02-authentication.md#acceso-a-módulos-por-rol))
-- [ ] Pantalla **Admin Panel**: alta/baja de categorías y productos, toggle activo
+      (matriz en [02-authentication](02-authentication.md#acceso-a-módulos-por-rol));
+      el login redirige pero el panel aún no protege rutas ni filtra el sidebar
+- [x] Pantalla **Admin Panel**: alta/baja de categorías, productos,
+      establecimientos, extras y tamaños; toggle activo; filas expandibles
+      con asignaciones *(frontend `/categories`, `/products`, `/stores`)*
 - [ ] Pantalla **Caja (POS)**: armar orden, comer aquí/para llevar, efectivo/tarjeta
 - [ ] Pantalla **Kiosko**: autoservicio del cliente, solo tarjeta
 - [ ] Pantalla **Cocina (KDS)**: ver órdenes y marcar PREPARING/READY/CANCELLED
-- [ ] **CORS** para el frontend Next.js (`localhost:3000` en dev) —
-      ver [11-frontend-integration](11-frontend-integration.md)
+- [x] **CORS** para el frontend Next.js (`localhost:3000` en dev) —
+      `SecurityConfig.corsSource()`
+- [ ] Items de orden con `sizeId`/`extraIds` (el POS/kiosko los necesitará)
+- [ ] `cashReceived`/`changeGiven` para pago en efectivo
+- [ ] Upload de imágenes de producto (hoy `image` es solo un URL en texto)
 
 ## Extras solicitados por el cliente
 

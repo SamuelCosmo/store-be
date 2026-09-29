@@ -6,6 +6,29 @@ establecimientos según su plan).
 
 Documentación del happy path en [`docs/`](docs/README.md).
 
+## Nuevo en el proyecto?
+
+1. Lee [`docs/07-api.md`](docs/07-api.md) — el happy path de la API con
+   estado real (✅ implementado / pendiente) — y [`docs/README.md`](docs/README.md)
+   para el índice completo.
+2. Convenciones del código: cada feature es un paquete con
+   `Entity / Repository / Service / Controller / dto/` (ver `product/` o
+   `extra/` como plantilla).
+3. **Scoping multi-tenant**: nunca confíes en IDs del body ni del path —
+   `AuthContext.current()` da `clientId`/`storeId`/`role` del JWT y
+   `StoreService.resolveScope()` decide si el caller opera su tienda de
+   sesión o, siendo ADMIN sin tienda, todo el cliente.
+4. **Hibernate `ddl-auto: update`**: agregar columnas/tablas no requiere
+   migración manual, pero el proceso corriendo tiene el esquema viejo —
+   reinicia la app tras cambios de entidades (síntoma típico: `500` o
+   campos que llegan `null`/`undefined` al frontend).
+5. Relaciones lazy: marca lecturas con `@Transactional(readOnly = true)` o
+   salta `LazyInitializationException` al serializar (ya pasó en
+   `categories`/`products`).
+6. Errores: lanza las excepciones de `common/exception` — el
+   `GlobalExceptionHandler` las convierte en `ErrorResponse`.
+7. `DataSeeder` carga datos de desarrollo al arrancar.
+
 ## Requisitos
 
 - Java 21
@@ -62,7 +85,7 @@ curl -X POST http://localhost:8080/api/auth/login \
 # 5. Catálogo: category → product → inventory
 curl -X POST http://localhost:8080/api/categories \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d '{"name":"Coffee"}'
+  -d '{"name":"Coffee","icon":"cup","storeIds":[1]}'
 
 curl -X POST http://localhost:8080/api/products \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
@@ -88,14 +111,16 @@ curl -X PATCH http://localhost:8080/api/orders/1/status \
 ```text
 src/main/java/com/store/platform/
 ├── auth/         # register (primer ADMIN) + login (elige storeId)
-├── category/     # CRUD categories
+├── category/     # CRUD categories (multi-store: category_stores, icon, active)
 ├── client/       # Client (tenant) + límites del plan
 ├── common/       # ErrorResponse + GlobalExceptionHandler
 ├── config/       # OpenAPI/Swagger config
+├── extra/        # CRUD extras (catálogo del cliente, N:M con products)
 ├── inventory/    # stock por producto (1:1)
 ├── order/        # Order + OrderItem + máquina de estados
-├── product/      # CRUD products + active toggle + tokenCost
+├── product/      # CRUD products + active toggle + tokenCost + sku/image
 ├── security/     # JWT filter/service + SecurityConfig (claims: clientId/storeId/role)
+├── size/         # CRUD sizes (catálogo del cliente, N:M con products)
 ├── store/        # CRUD stores + devices (cajas/kioskos por plan)
 └── user/         # User entity + roles + user_stores
 ```

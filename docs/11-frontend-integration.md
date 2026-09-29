@@ -39,30 +39,39 @@ Siguientes requests:
 
 ## Pantallas a construir
 
-Mapeo completo en [10-frontend-screens](10-frontend-screens.md):
+Mapeo completo en [10-frontend-screens](10-frontend-screens.md). Rutas
+implementadas en `store-fe` (route group `app/(panel)/` comparte el sidebar
+sin prefijo en la URL):
 
-| Pantalla         | Ruta sugerida      | Consume                                     |
-| ---------------- | ------------------ | ------------------------------------------- |
-| Login            | `/login`           | `POST /api/auth/login`                      |
-| Admin Panel      | `/admin`           | CRUD stores/categories/products, inventory  |
-| Caja (POS)       | `/pos`             | `POST /api/orders` (CASH/CARD)              |
-| Kiosko           | `/kiosk`           | `POST /api/orders` (solo CARD; sesión de kiosko ligada al establecimiento) |
-| Cocina (KDS)     | `/kitchen`         | `GET /api/orders?storeId=&status=` + PATCH  |
-| Barra *(extra)*  | `/bar`             | `GET /api/bar/items` + PATCH status       |
+| Pantalla         | Ruta        | Estado | Consume                                     |
+| ---------------- | ----------- | ------ | ------------------------------------------- |
+| Login            | `/`         | ✅     | `POST /api/auth/login`                      |
+| Admin Panel      | `/dashboard` | ✅ parcial | landing; faltan métricas                |
+| Categorías       | `/categories` | ✅   | CRUD `/api/categories` (multi-tienda)       |
+| Productos        | `/products` | ✅     | CRUD `/api/products` + `/api/extras`, `/api/sizes` |
+| Establecimientos | `/stores`   | ✅     | CRUD `/api/stores` + `/api/clients/{id}/stores` |
+| Caja (POS)       | `/pos`      | placeholder | `POST /api/orders` (CASH/CARD)              |
+| Kiosko           | `/kiosk`    | placeholder | `POST /api/orders` (solo CARD; sesión de kiosko ligada al establecimiento) |
+| Cocina (KDS)     | `/kitchen`  | placeholder | `GET /api/orders?storeId=&status=` + PATCH  |
+| Barra *(extra)*  | `/bar`      | pendiente | `GET /api/bar/items` + PATCH status       |
 
 ## Contrato de API
 
 Referencia completa: [07-api](07-api.md). Durante desarrollo también sirve
 Swagger UI en `http://localhost:8080/swagger-ui.html`.
 
-## Pendientes en el backend para soportar el frontend
+## Estado del backend para soportar el frontend
 
-- [ ] **CORS** — permitir origen `http://localhost:3000` (dev de Next.js) en
-      `SecurityConfig`
-- [ ] `Client` (tenant) + endpoints `/api/clients/**`
-- [ ] `Order` con `channel`, `orderType`, `paymentMethod` + regla KIOSK→CARD
-- [ ] `PATCH /api/products/{id}/active`
-- [ ] `GET /api/orders` filtro por `status` (para el KDS)
+- [x] **CORS** — `http://localhost:3000` permitido en `SecurityConfig`
+- [x] `Client` (tenant) + endpoints `/api/clients/**`
+- [x] `Order` con `channel`, `orderType`, `paymentMethod` + regla KIOSK→CARD
+- [x] `PATCH /api/products/{id}/active`
+- [x] `GET /api/orders` filtro por `status` (para el KDS)
+- [x] Catálogos `/api/extras` y `/api/sizes` + `sku`/`image` en productos
+- [ ] Items de orden con `sizeId`/`extraIds`
+- [ ] `cashReceived`/`changeGiven` en `POST /api/orders` (efectivo)
+- [ ] `GET /api/orders/{id}/ticket`
+- [ ] Tokens, barra, reportes, mesas/reservaciones, módulos por usuario
 
 ## Formato de errores
 

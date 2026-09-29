@@ -22,8 +22,10 @@ y extendida con el modelo de negocio multi-tenant).
 ## Resumen
 
 El producto se vende a **clientes** (restaurantes, cafés, etc.). Cada cliente
-puede tener **varios establecimientos**, y cada establecimiento tiene su propio
-catálogo (categorías, productos, inventario) y sus propias órdenes.
+puede tener **varios establecimientos**. El catálogo se arma así: **extras y
+tamaños** viven a nivel cliente; **categorías** se asignan a una o varias
+tiendas (`category_stores`); **productos, inventario y órdenes** viven por
+establecimiento.
 
 Superficies de usuario:
 

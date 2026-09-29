@@ -37,6 +37,11 @@ Funciones:
 
 - Alta/baja de **categorías** → `POST/PUT/DELETE /api/categories`
 - Alta/baja de **productos** y precios → `POST/PUT/DELETE /api/products`
+  (con `sku`, `image`, `tokenCost`)
+- Catálogo de **extras** → `POST/PUT/DELETE /api/extras`, asignables a
+  productos N:M
+- Catálogo de **tamaños** → `POST/PUT/DELETE /api/sizes`, asignables a
+  productos N:M (`price` = cargo adicional)
 - **Activar/desactivar** productos → `PATCH /api/products/{id}/active`
   (solo los activos se muestran en caja y kiosko)
 - Configurar **inventario** → `PUT /api/inventory/{productId}`
