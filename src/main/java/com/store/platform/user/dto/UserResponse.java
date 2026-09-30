@@ -11,6 +11,7 @@ public record UserResponse(
         String name,
         String email,
         User.Role role,
+        boolean active,
         List<Long> storeIds) {
 
     public static UserResponse from(User user) {
@@ -20,6 +21,7 @@ public record UserResponse(
                 user.getName(),
                 user.getEmail(),
                 user.getRole(),
+                user.isActive(),
                 user.getStores().stream().map(Store::getId).sorted().toList());
     }
 }

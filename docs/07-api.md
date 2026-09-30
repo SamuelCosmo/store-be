@@ -108,15 +108,22 @@ DELETE /api/sizes/{id}
 - Asignación se hace desde el producto (`sizeIds`) o desde el tamaño
   (`productIds`) — ambas direcciones reconcilian la misma join table.
 
-## Users ✅ *(parcial)*
+## Users ✅
 
 ```text
-POST   /api/users               # alta de usuarios del cliente
-GET    /api/users
+POST   /api/users                    # alta (ADMIN)
+GET    /api/users                    # lista del cliente (ADMIN/MANAGER)
+PUT    /api/users/{id}               # editar (ADMIN) — password opcional
+PATCH  /api/users/{id}/active        # activar/desactivar (ADMIN)
+DELETE /api/users/{id}               # baja (ADMIN)
 ```
 
-- TODO: asignación de tiendas (`user_stores`) y módulos por usuario;
-  `PUT /api/users/{id}/modules` documentado pero pendiente.
+- **Todas las mutaciones exigen `currentPassword`** — la contraseña del admin
+  con la sesión iniciada (re-autenticación); 401 si no coincide.
+- No puedes desactivarte, eliminarte ni cambiar tu propio rol.
+- `users.active = false` ⇒ login rechazado (`Invalid credentials`).
+- User: `{ name, email, password?, role, storeIds[], active, currentPassword }`
+- TODO: `PUT /api/users/{id}/modules` — módulos por usuario.
 
 ## Inventory ✅
 

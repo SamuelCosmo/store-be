@@ -5,11 +5,15 @@ import com.store.platform.client.ClientRepository;
 import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.DuplicateResourceException;
 import com.store.platform.common.exception.ResourceNotFoundException;
+import com.store.platform.security.AuthContext;
 import com.store.platform.store.Store;
 import com.store.platform.store.StoreRepository;
+import com.store.platform.user.dto.PasswordRequest;
 import com.store.platform.user.dto.UserRequest;
 import com.store.platform.user.dto.UserResponse;
+import com.store.platform.user.dto.UserUpdateRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,6 +34,13 @@ public class UserService {
 
     @Transactional
     public UserResponse create(Long clientId, UserRequest request) {
+        requireSelfPassword(request.currentPassword());
+        return createUnchecked(clientId, request);
+    }
+
+    /** Internal bootstrap (DataSeeder) — no caller session exists yet. */
+    @Transactional
+    public UserResponse createUnchecked(Long clientId, UserRequest request) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found: " + clientId));
         if (userRepository.existsByEmail(request.email())) {
@@ -51,6 +62,70 @@ public class UserService {
         return userRepository.findByClientId(clientId).stream()
                 .map(UserResponse::from)
                 .toList();
+    }
+
+    @Transactional
+    public UserResponse update(Long id, UserUpdateRequest request) {
+        requireSelfPassword(request.currentPassword());
+        User user = findOwnedOrThrow(id);
+        if (request.role() == User.Role.ADMIN && user.getRole() != User.Role.ADMIN
+                || user.getRole() == User.Role.ADMIN && request.role() != User.Role.ADMIN) {
+            // changing admin status is allowed, but never on yourself
+            if (user.getId().equals(AuthContext.current().userId())) {
+                throw new BusinessException("You cannot change your own role");
+            }
+        }
+        if (userRepository.existsByEmailAndIdNot(request.email(), id)) {
+            throw new DuplicateResourceException("Email already registered: " + request.email());
+        }
+        user.setName(request.name());
+        user.setEmail(request.email());
+        if (request.password() != null && !request.password().isBlank()) {
+            user.setPassword(passwordEncoder.encode(request.password()));
+        }
+        user.setRole(request.role());
+        user.setStores(resolveStores(user.getClient().getId(), request.storeIds()));
+        return UserResponse.from(userRepository.save(user));
+    }
+
+    @Transactional
+    public UserResponse setActive(Long id, boolean active, PasswordRequest request) {
+        requireSelfPassword(request.currentPassword());
+        User user = findOwnedOrThrow(id);
+        if (!active && user.getId().equals(AuthContext.current().userId())) {
+            throw new BusinessException("You cannot deactivate your own account");
+        }
+        user.setActive(active);
+        return UserResponse.from(userRepository.save(user));
+    }
+
+    @Transactional
+    public void delete(Long id, PasswordRequest request) {
+        requireSelfPassword(request.currentPassword());
+        User user = findOwnedOrThrow(id);
+        if (user.getId().equals(AuthContext.current().userId())) {
+            throw new BusinessException("You cannot delete your own account");
+        }
+        userRepository.delete(user);
+    }
+
+    /** Caller must re-enter their own password to mutate other users. */
+    private void requireSelfPassword(String currentPassword) {
+        User self = userRepository.findById(AuthContext.current().userId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (!passwordEncoder.matches(currentPassword, self.getPassword())) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
+    }
+
+    /** User must belong to the caller's client. */
+    private User findOwnedOrThrow(Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        if (!user.getClient().getId().equals(AuthContext.current().clientId())) {
+            throw new ResourceNotFoundException("User not found: " + id);
+        }
+        return user;
     }
 
     private Set<Store> resolveStores(Long clientId, List<Long> storeIds) {

@@ -33,8 +33,8 @@ public class DataSeeder implements CommandLineRunner {
         }
         ClientResponse client = clientService.create(
                 new ClientRequest("client_test", 1, 2, 2));
-        userService.create(client.id(),
-                new UserRequest("admin_test", ADMIN_EMAIL, "admin_test", User.Role.ADMIN, List.of()));
+        userService.createUnchecked(client.id(),
+                new UserRequest("admin_test", ADMIN_EMAIL, "admin_test", User.Role.ADMIN, List.of(), null));
         log.info("Seeded client_test (id={}) with admin {}", client.id(), ADMIN_EMAIL);
     }
 }

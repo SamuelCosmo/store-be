@@ -56,6 +56,7 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.email())
+                .filter(User::isActive)
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
         Long storeId = resolveStore(user, request.storeId());

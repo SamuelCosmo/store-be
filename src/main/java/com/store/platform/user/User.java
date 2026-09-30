@@ -47,6 +47,11 @@ public class User {
     @Builder.Default
     private Set<Store> stores = new HashSet<>();
 
+    /** Existing rows get true via column default (ddl-auto update). */
+    @Column(nullable = false, columnDefinition = "boolean not null default true")
+    @Builder.Default
+    private boolean active = true;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
