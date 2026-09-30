@@ -180,13 +180,21 @@ POST   /api/tokens/redeem       # { productId, quantity } — canje en barra
 solo productos con `tokenCost > 0` son canjeables; el canje descuenta
 inventario; compra y canje quedan ligados al staff autenticado que los operó.
 
-## Reports *(pendiente de implementar — ADMIN/MANAGER)*
+## Reports ✅ *(ADMIN/MANAGER)*
 
 ```text
-GET    /api/reports/sales/daily?date=              # ventas del día
-GET    /api/reports/top-products?from=&to=&limit=  # productos más vendidos
-GET    /api/reports/sales-by-employee?from=&to=    # quién vendió más
+GET    /api/reports/dashboard?from=&to=&storeId=&top=   # todo en una llamada
 ```
+
+Devuelve `DashboardResponse`: `totalSales`, `orders`, `avgTicket`,
+`cancelledOrders`, `refundedTotal`, `channels[]`, `orderTypes[]`,
+`payments[]`, `hourly[]`, `topProducts[]` (ordenado por revenue, `top=5`
+default), `employees[]`. Las órdenes `CANCELLED` no cuentan en ventas;
+`refundedTotal` suma las que quedaron `REFUNDED`.
+
+- `from`/`to` = `YYYY-MM-DD` inclusive (default: hoy). Zona: `systemDefault`.
+- `storeId` opcional solo para ADMIN; sin tienda en sesión y sin param,
+  un ADMIN consolida todo el cliente.
 
 ## Bar *(pendiente de implementar)*
 
