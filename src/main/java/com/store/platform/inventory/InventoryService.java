@@ -32,16 +32,21 @@ public class InventoryService {
         return InventoryResponse.from(inventoryRepository.save(inventory));
     }
 
-    /** Deducts stock; throws if insufficient. Call inside the caller's transaction. */
+    /**
+     * Deducts stock when the product has inventory configured; throws if
+     * insufficient. Products without an inventory record are treated as
+     * unlimited — ponytail: until the real inventory module lands.
+     * Call inside the caller's transaction.
+     */
     public void decrease(Product product, int quantity) {
-        Inventory inventory = inventoryRepository.findByProductId(product.getId())
-                .orElseThrow(() -> new InsufficientStockException(
-                        "No stock configured for product: " + product.getName()));
-        if (inventory.getQuantity() < quantity) {
-            throw new InsufficientStockException("Insufficient stock for product: " + product.getName());
-        }
-        inventory.setQuantity(inventory.getQuantity() - quantity);
-        inventoryRepository.save(inventory);
+        inventoryRepository.findByProductId(product.getId()).ifPresent(inventory -> {
+            if (inventory.getQuantity() < quantity) {
+                throw new InsufficientStockException(
+                        "Insufficient stock for product: " + product.getName());
+            }
+            inventory.setQuantity(inventory.getQuantity() - quantity);
+            inventoryRepository.save(inventory);
+        });
     }
 
     /** Restores stock — used when an order is cancelled. */

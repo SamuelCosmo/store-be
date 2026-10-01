@@ -14,7 +14,7 @@ app:
   jwt:
     # ponytail: dev default, override with JWT_SECRET in real environments
     secret: ${JWT_SECRET:dev-only-secret-key-change-me-in-production-0123456789abcdef}
-    expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    expiration-ms: ${JWT_EXPIRATION_MS:604800000}
 
 springdoc:
   swagger-ui:

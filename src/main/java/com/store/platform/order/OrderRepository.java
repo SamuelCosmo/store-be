@@ -10,6 +10,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByStoreIdOrderByCreatedAtDesc(Long storeId);
 
+    long countByStoreIdAndCreatedAtGreaterThanEqual(Long storeId, Instant from);
+
     List<Order> findByStoreIdAndStatusOrderByCreatedAtDesc(Long storeId, Order.Status status);
 
     @EntityGraph(attributePaths = { "items", "items.product", "user" })

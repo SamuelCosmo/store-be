@@ -1,5 +1,6 @@
 package com.store.platform.order;
 
+import com.store.platform.order.dto.NextNumberResponse;
 import com.store.platform.order.dto.OrderRequest;
 import com.store.platform.order.dto.OrderResponse;
 import com.store.platform.order.dto.StatusRequest;
@@ -28,6 +29,11 @@ public class OrderController {
     public List<OrderResponse> list(@RequestParam(required = false) Long storeId,
                                     @RequestParam(required = false) Order.Status status) {
         return orderService.list(storeId, status);
+    }
+
+    @GetMapping("/next-number")
+    public NextNumberResponse nextNumber() {
+        return orderService.nextWeeklyNumber();
     }
 
     @GetMapping("/{id}")

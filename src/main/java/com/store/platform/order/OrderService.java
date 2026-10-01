@@ -3,6 +3,7 @@ package com.store.platform.order;
 import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.ResourceNotFoundException;
 import com.store.platform.inventory.InventoryService;
+import com.store.platform.order.dto.NextNumberResponse;
 import com.store.platform.order.dto.OrderItemRequest;
 import com.store.platform.order.dto.OrderRequest;
 import com.store.platform.order.dto.OrderResponse;
@@ -19,6 +20,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.temporal.TemporalAdjusters;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +103,18 @@ public class OrderService {
         }
         order.setTotal(total);
         return OrderResponse.from(orderRepository.save(order));
+    }
+
+    /** Next ticket number for this store's week (resets Monday 00:00, server timezone). */
+    @Transactional(readOnly = true)
+    public NextNumberResponse nextWeeklyNumber() {
+        Instant weekStart = LocalDate.now()
+                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+                .atStartOfDay(ZoneId.systemDefault())
+                .toInstant();
+        long count = orderRepository.countByStoreIdAndCreatedAtGreaterThanEqual(
+                AuthContext.requireStoreId(), weekStart);
+        return new NextNumberResponse(count + 1);
     }
 
     @Transactional(readOnly = true)

@@ -137,6 +137,7 @@ PUT    /api/inventory/{productId}
 ```text
 POST   /api/orders
 GET    /api/orders              # ?storeId=&status= (la cocina filtra por estado)
+GET    /api/orders/next-number  # → { nextNumber } — folio semanal del ticket
 GET    /api/orders/{id}
 PATCH  /api/orders/{id}/status
 ```
@@ -157,10 +158,18 @@ PATCH  /api/orders/{id}/status
 - `channel = KIOSK` ⇒ `paymentMethod` solo `CARD`.
 - `storeId` **no va en el body** — se deriva de la sesión autenticada.
 - Validación: productos activos y pertenecientes al store de sesión;
-  descuenta inventario en la misma transacción; items duplicados se fusionan.
+  items duplicados se fusionan. Si el producto tiene inventario
+  configurado lo descuenta en la misma transacción (revienta si no
+  alcanza); sin registro de inventario se trata como stock ilimitado
+  — temporal hasta que aterrice el módulo de inventario.
 - `CANCELLED` permitido hasta `PREPARING` inclusive → restaura inventario y
   `refund_status = REFUNDED` (reembolso manual por staff).
 - Transiciones: `PENDING → CONFIRMED → PREPARING → READY → COMPLETED`.
+- `GET /api/orders/next-number` → `{ "nextNumber": n }` — número del
+  siguiente ticket de la semana en el store de sesión (conteo de órdenes
+  desde el lunes 00:00 + 1; se resetea cada lunes, zona horaria del
+  servidor). Es el folio que el POS/kiosco muestra en el encabezado del
+  ticket.
 
 **Pendiente en órdenes:**
 
