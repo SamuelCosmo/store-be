@@ -35,7 +35,8 @@ import java.util.Set;
 public class OrderService {
 
     private static final Map<Order.Status, Set<Order.Status>> TRANSITIONS = Map.of(
-            Order.Status.PENDING, Set.of(Order.Status.CONFIRMED, Order.Status.CANCELLED),
+            Order.Status.PENDING,
+            Set.of(Order.Status.CONFIRMED, Order.Status.PREPARING, Order.Status.CANCELLED),
             Order.Status.CONFIRMED, Set.of(Order.Status.PREPARING, Order.Status.CANCELLED),
             Order.Status.PREPARING, Set.of(Order.Status.READY, Order.Status.CANCELLED),
             Order.Status.READY, Set.of(Order.Status.COMPLETED),

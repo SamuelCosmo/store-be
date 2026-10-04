@@ -28,6 +28,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -45,12 +46,13 @@ class OrderServiceTest {
     @InjectMocks OrderService orderService;
 
     private Product product;
+    private Store store;
 
     @BeforeEach
     void setUp() {
         Client client = Client.builder().id(1L).build();
-        Store store = Store.builder().id(1L).client(client).build();
-        Category category = Category.builder().id(1L).store(store).build();
+        store = Store.builder().id(1L).client(client).build();
+        Category category = Category.builder().id(1L).stores(Set.of(store)).build();
         product = Product.builder()
                 .id(1L).category(category).name("Espresso")
                 .price(new BigDecimal("3.50")).active(true).build();
@@ -89,8 +91,7 @@ class OrderServiceTest {
     void createMergesDuplicatesAndComputesTotal() {
         authenticate(User.Role.EMPLOYEE);
         when(productRepository.findAllById(any())).thenReturn(List.of(product));
-        when(storeRepository.getReferenceById(1L))
-                .thenReturn(product.getCategory().getStore());
+        when(storeRepository.getReferenceById(1L)).thenReturn(store);
         when(userRepository.getReferenceById(7L)).thenReturn(User.builder().id(7L).build());
         when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 

@@ -27,7 +27,9 @@ Pantalla de inicio de sesión para staff y admin.
 - `POST /api/auth/login` → JWT
 - `POST /api/auth/register` (alta de usuarios)
 - Redirige según rol + módulos: `ADMIN`/`MANAGER` → Panel Admin, `EMPLOYEE` →
-  Caja o KDS según módulos asignados, `CUSTOMER` (cuenta genérica) → Kiosko
+  Caja o KDS según módulos asignados, `CUSTOMER` (cuenta genérica) → Kiosko,
+  `KITCHEN` → KDS (puede actualizar estatus de órdenes: PLACED → PREPARING →
+  READY)
 
 ## 2. Panel Admin (paquete básico)
 

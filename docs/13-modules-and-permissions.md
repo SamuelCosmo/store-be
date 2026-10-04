@@ -83,7 +83,7 @@ stores.business_type          — preset del giro
 
 ## Relación con roles
 
-- `Role` (ADMIN/MANAGER/EMPLOYEE/CUSTOMER) sigue existiendo: define la
+- `Role` (ADMIN/MANAGER/EMPLOYEE/CUSTOMER/KITCHEN) sigue existiendo: define la
   **jerarquía operativa** (quién puede crear usuarios, editar catálogo, etc.).
 - Los **módulos** definen **qué pantallas ve** cada usuario.
 - Ejemplo: un `EMPLOYEE` puede tener `POS + TOKENS` o solo `BAR`; el módulo

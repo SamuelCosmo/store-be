@@ -42,7 +42,7 @@ public class OrderController {
     }
 
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE','KITCHEN')")
     public OrderResponse updateStatus(@PathVariable Long id, @Valid @RequestBody StatusRequest request) {
         return orderService.updateStatus(id, request.status());
     }

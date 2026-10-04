@@ -164,7 +164,8 @@ PATCH  /api/orders/{id}/status
   — temporal hasta que aterrice el módulo de inventario.
 - `CANCELLED` permitido hasta `PREPARING` inclusive → restaura inventario y
   `refund_status = REFUNDED` (reembolso manual por staff).
-- Transiciones: `PENDING → CONFIRMED → PREPARING → READY → COMPLETED`.
+- Transiciones: `PENDING → PREPARING → READY → COMPLETED` (`PENDING` también
+  admite `CONFIRMED`, pero el KDS pasa directo a `PREPARING`).
 - `GET /api/orders/next-number` → `{ "nextNumber": n }` — número del
   siguiente ticket de la semana en el store de sesión (conteo de órdenes
   desde el lunes 00:00 + 1; se resetea cada lunes, zona horaria del

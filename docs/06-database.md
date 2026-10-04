@@ -54,6 +54,13 @@ Client (tenant: restaurante, café, etc.)
 > **Nota de implementación:** `customers` se modela como `users` con rol
 > `CUSTOMER`. Si más adelante se separan, se crea la tabla `customers` propia.
 
+> **CHECKs de enums:** Hibernate (`ddl-auto: update`) genera constraints
+> `CHECK` con los valores del enum (ej. `users_role_check`). Al agregar un
+> valor nuevo al enum hay que actualizar el constraint a mano — `update`
+> no altera constraints existentes:
+> `ALTER TABLE users DROP CONSTRAINT users_role_check;` + `ADD ... CHECK
+> (role = ANY (...))` incluyendo el valor nuevo.
+
 ## Relaciones clave
 
 | Tabla         | Relación / columnas extra                                     |

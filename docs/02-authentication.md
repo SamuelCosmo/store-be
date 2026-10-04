@@ -43,17 +43,17 @@ El frontend oculta las rutas no autorizadas y el backend las refuerza con
 > client_modules`). La matriz de abajo es el **preset del giro restaurante**;
 > ver [13-modules-and-permissions](13-modules-and-permissions.md).
 
-| Módulo / Pantalla      | ADMIN | MANAGER | EMPLOYEE | CUSTOMER |
-| ---------------------- | :---: | :-----: | :------: | :------: |
-| Login                  |  ✓    |    ✓    |    ✓     |    ✓     |
-| Panel Admin (catálogo) |  ✓    |    ✓    |    —     |    —     |
-| Reportes (ventas)      |  ✓    |    ✓    |    —     |    —     |
-| Caja (POS)             |  ✓    |    ✓    |    ✓     |    —     |
-| Kiosko (pedidos)       |  —    |    —    |    —     |    ✓     |
-| Cocina (KDS)           |  —    |    ✓    |    ✓     |    —     |
-| Barra                  |  —    |    ✓    |    ✓     |    —     |
-| Reservaciones          |  ✓    |    ✓    |    ✓     |    —     |
-| Fichas (compra/canje)  |  ✓    |    ✓    |    ✓     |    —     |
+| Módulo / Pantalla      | ADMIN | MANAGER | EMPLOYEE | CUSTOMER | KITCHEN |
+| ---------------------- | :---: | :-----: | :------: | :------: | :-----: |
+| Login                  |  ✓    |    ✓    |    ✓     |    ✓     |    ✓    |
+| Panel Admin (catálogo) |  ✓    |    ✓    |    —     |    —     |    —    |
+| Reportes (ventas)      |  ✓    |    ✓    |    —     |    —     |    —    |
+| Caja (POS)             |  ✓    |    ✓    |    ✓     |    —     |    —    |
+| Kiosko (pedidos)       |  —    |    —    |    —     |    ✓     |    —    |
+| Cocina (KDS)           |  —    |    ✓    |    ✓     |    —     |    ✓    |
+| Barra                  |  —    |    ✓    |    ✓     |    —     |    —    |
+| Reservaciones          |  ✓    |    ✓    |    ✓     |    —     |    —    |
+| Fichas (compra/canje)  |  ✓    |    ✓    |    ✓     |    —     |    —    |
 
 Ejemplos de la regla:
 
