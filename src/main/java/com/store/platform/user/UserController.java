@@ -8,12 +8,11 @@ import com.store.platform.user.dto.UserResponse;
 import com.store.platform.user.dto.UserUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -29,10 +28,18 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).body(userService.create(clientId, request));
     }
 
+    /** Sin page/size → array completo; con ellos → Page.
+     *  Se decide por presencia explícita: el fallback de Boot pagina hasta sin params. */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    public List<UserResponse> listByClient() {
-        return userService.listByClient(AuthContext.current().clientId());
+    public Object listByClient(@RequestParam(required = false) String search,
+                               @RequestParam(required = false) Integer page,
+                               @RequestParam(required = false) Integer size,
+                               Pageable pageable) {
+        Long clientId = AuthContext.current().clientId();
+        return page != null || size != null
+                ? userService.pageByClient(clientId, search, pageable)
+                : userService.listByClient(clientId);
     }
 
     @PutMapping("/{id}")

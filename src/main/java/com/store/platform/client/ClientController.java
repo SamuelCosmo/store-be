@@ -9,13 +9,12 @@ import com.store.platform.store.StoreService;
 import com.store.platform.store.dto.StoreResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/clients")
@@ -37,10 +36,18 @@ public class ClientController {
         return clientService.getById(id);
     }
 
+    /** Sin page/size → array completo (selects/terminales); con ellos → Page.
+     *  Se decide por presencia explícita: el fallback de Boot pagina hasta sin params. */
     @GetMapping("/{id}/stores")
-    public List<StoreResponse> listStores(@PathVariable Long id) {
+    public Object listStores(@PathVariable Long id,
+                             @RequestParam(required = false) String search,
+                             @RequestParam(required = false) Integer page,
+                             @RequestParam(required = false) Integer size,
+                             Pageable pageable) {
         requireOwnClient(id);
-        return storeService.listByClient(id);
+        return page != null || size != null
+                ? storeService.pageByClient(id, search, pageable)
+                : storeService.listByClient(id);
     }
 
     @GetMapping("/{id}/settings")

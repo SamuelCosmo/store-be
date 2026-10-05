@@ -23,7 +23,8 @@ public record OrderItemResponse(
                 item.getQuantity(),
                 item.getUnitPrice(),
                 item.getSizeName(),
-                item.getExtras(),
+                // null en items creados antes de la columna extras jsonb
+                item.getExtras() == null ? List.of() : item.getExtras(),
                 item.getNotes(),
                 item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
     }

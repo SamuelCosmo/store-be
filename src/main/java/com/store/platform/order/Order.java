@@ -55,6 +55,15 @@ public class Order {
     @Column(nullable = false)
     private BigDecimal total;
 
+    /** Net before tax — sum of item lines; catalog prices don't include tax. */
+    private BigDecimal subtotal;
+
+    /** Client's taxRate % snapshot at order time. */
+    private BigDecimal taxRate;
+
+    /** Tax added on top of subtotal (total = subtotal + taxAmount). */
+    private BigDecimal taxAmount;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();

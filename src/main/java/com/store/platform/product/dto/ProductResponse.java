@@ -19,6 +19,7 @@ public record ProductResponse(
         String image,
         BigDecimal price,
         boolean active,
+        boolean soldOut,
         int tokenCost,
         List<ExtraResponse> extras,
         List<SizeResponse> sizes) {
@@ -33,6 +34,7 @@ public record ProductResponse(
                 product.getImage(),
                 product.getPrice(),
                 product.isActive(),
+                product.isSoldOut(),
                 product.getTokenCost(),
                 // extras alfabéticos; tamaños en el orden global del catálogo
                 product.getExtras().stream()

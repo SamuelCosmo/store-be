@@ -14,6 +14,8 @@ import com.store.platform.store.dto.StoreSettingsRequest;
 import com.store.platform.store.dto.StoreSettingsResponse;
 import com.store.platform.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +56,12 @@ public class StoreService {
         return storeRepository.findByClientId(clientId).stream()
                 .map(StoreResponse::from)
                 .toList();
+    }
+
+    /** Versión paginada para la tabla del admin. */
+    public Page<StoreResponse> pageByClient(Long clientId, String search, Pageable pageable) {
+        String q = search == null ? "" : search.trim();
+        return storeRepository.pageByClient(clientId, q, pageable).map(StoreResponse::from);
     }
 
     @Transactional

@@ -14,6 +14,8 @@ import com.store.platform.security.AuthUser;
 import com.store.platform.store.StoreService;
 import com.store.platform.user.User;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,6 +74,26 @@ public class ProductService {
                 : productRepository.findByCategoryStores_Id(scope));
     }
 
+    /** Versión paginada para la tabla del admin — mismo scoping/filtros que {@link #list}. */
+    @Transactional(readOnly = true)
+    public Page<ProductResponse> listPage(Long storeId, Long categoryId, Boolean activeOnly,
+                                          String search, Pageable pageable) {
+        AuthUser auth = AuthContext.current();
+        boolean onlyActive = Boolean.TRUE.equals(activeOnly)
+                || auth.role() == User.Role.CUSTOMER;
+        String q = search == null ? "" : search.trim();
+        Page<Product> page;
+        if (categoryId != null) {
+            categoryService.findScopedOrThrow(categoryId);
+            page = productRepository.pageByCategory(categoryId, q, onlyActive, pageable);
+        } else if (storeId == null && auth.storeId() == null && auth.role() == User.Role.ADMIN) {
+            page = productRepository.pageByClient(auth.clientId(), q, onlyActive, pageable);
+        } else {
+            page = productRepository.pageByStore(storeService.resolveScope(storeId), q, onlyActive, pageable);
+        }
+        return page.map(ProductResponse::from);
+    }
+
     @Transactional(readOnly = true)
     public ProductResponse getById(Long id) {
         return ProductResponse.from(findScopedOrThrow(id));
@@ -101,6 +123,13 @@ public class ProductService {
     public ProductResponse setActive(Long id, boolean active) {
         Product product = findScopedOrThrow(id);
         product.setActive(active);
+        return ProductResponse.from(productRepository.save(product));
+    }
+
+    @Transactional
+    public ProductResponse setSoldOut(Long id, boolean soldOut) {
+        Product product = findScopedOrThrow(id);
+        product.setSoldOut(soldOut);
         return ProductResponse.from(productRepository.save(product));
     }
 

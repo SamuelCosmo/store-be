@@ -17,10 +17,15 @@ import com.store.platform.store.StoreService;
 import com.store.platform.user.User;
 import com.store.platform.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -92,7 +97,7 @@ public class OrderService {
             if (product.getCategory().getStores().stream().noneMatch(s -> s.getId().equals(storeId))) {
                 throw new BusinessException("Product does not belong to this store: " + product.getName());
             }
-            if (!product.isActive()) {
+            if (!product.isActive() || product.isSoldOut()) {
                 throw new BusinessException("Product is not available: " + product.getName());
             }
 
@@ -133,7 +138,19 @@ public class OrderService {
                     .build());
             total = total.add(unit.multiply(BigDecimal.valueOf(item.quantity())));
         }
-        order.setTotal(total);
+        // El impuesto se agrega sobre la suma de items — los precios del
+        // catálogo no lo incluyen. taxRate queda como snapshot del cliente
+        // (sobrevive cambios de settings).
+        BigDecimal rate = order.getStore().getClient().getTaxRate();
+        if (rate == null || rate.signum() <= 0) {
+            rate = BigDecimal.ZERO;
+        }
+        BigDecimal taxAmount = total.multiply(rate)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        order.setSubtotal(total);
+        order.setTaxRate(rate);
+        order.setTaxAmount(taxAmount);
+        order.setTotal(total.add(taxAmount));
         return OrderResponse.from(orderRepository.save(order));
     }
 
@@ -156,6 +173,20 @@ public class OrderService {
                 ? orderRepository.findByStoreIdOrderByCreatedAtDesc(scope)
                 : orderRepository.findByStoreIdAndStatusOrderByCreatedAtDesc(scope, status);
         return orders.stream().map(OrderResponse::from).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<OrderResponse> listPage(Long storeId, Order.Status status, Pageable pageable) {
+        Long scope = storeService.resolveScope(storeId);
+        // historial: más reciente primero salvo sort explícito
+        Pageable sorted = pageable.getSort().isUnsorted()
+                ? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
+                        Sort.by("createdAt").descending())
+                : pageable;
+        Page<Order> orders = status == null
+                ? orderRepository.findByStoreId(scope, sorted)
+                : orderRepository.findByStoreIdAndStatus(scope, status, sorted);
+        return orders.map(OrderResponse::from);
     }
 
     @Transactional(readOnly = true)

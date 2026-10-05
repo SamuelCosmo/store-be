@@ -73,7 +73,7 @@ class OrderServiceTest {
     void kioskRejectsCash() {
         authenticate(User.Role.CUSTOMER);
         OrderRequest request = new OrderRequest(Order.Channel.KIOSK, Order.OrderType.DINE_IN,
-                Order.PaymentMethod.CASH, List.of(new OrderItemRequest(1L, 1)));
+                Order.PaymentMethod.CASH, List.of(new OrderItemRequest(1L, 1, null, null, null)));
         assertThrows(BusinessException.class, () -> orderService.create(request));
         verifyNoInteractions(orderRepository);
     }
@@ -82,29 +82,32 @@ class OrderServiceTest {
     void customerCannotUsePosChannel() {
         authenticate(User.Role.CUSTOMER);
         OrderRequest request = new OrderRequest(Order.Channel.POS, Order.OrderType.TAKEAWAY,
-                Order.PaymentMethod.CARD, List.of(new OrderItemRequest(1L, 1)));
+                Order.PaymentMethod.CARD, List.of(new OrderItemRequest(1L, 1, null, null, null)));
         assertThrows(BusinessException.class, () -> orderService.create(request));
         verifyNoInteractions(orderRepository);
     }
 
     @Test
-    void createMergesDuplicatesAndComputesTotal() {
+    void createComputesTotalFromServerSideUnitPrice() {
         authenticate(User.Role.EMPLOYEE);
         when(productRepository.findAllById(any())).thenReturn(List.of(product));
         when(storeRepository.getReferenceById(1L)).thenReturn(store);
         when(userRepository.getReferenceById(7L)).thenReturn(User.builder().id(7L).build());
         when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
+        // cada línea del request es una línea de orden — no hay merge
         OrderRequest request = new OrderRequest(Order.Channel.POS, Order.OrderType.DINE_IN,
                 Order.PaymentMethod.CASH,
-                List.of(new OrderItemRequest(1L, 1), new OrderItemRequest(1L, 2)));
+                List.of(new OrderItemRequest(1L, 1, null, null, null),
+                        new OrderItemRequest(1L, 2, null, null, null)));
 
         OrderResponse response = orderService.create(request);
 
+        assertEquals(new BigDecimal("10.50"), response.subtotal());
         assertEquals(new BigDecimal("10.50"), response.total());
-        assertEquals(1, response.items().size());
-        assertEquals(3, response.items().get(0).quantity());
-        verify(inventoryService).decrease(product, 3);
+        assertEquals(2, response.items().size());
+        verify(inventoryService).decrease(product, 1);
+        verify(inventoryService).decrease(product, 2);
     }
 
     @Test

@@ -6,12 +6,11 @@ import com.store.platform.order.dto.OrderResponse;
 import com.store.platform.order.dto.StatusRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/orders")
@@ -25,10 +24,17 @@ public class OrderController {
         return ResponseEntity.status(HttpStatus.CREATED).body(orderService.create(request));
     }
 
+    /** Sin page/size → array completo (KDS); con ellos → Page (historial/admin).
+     *  Se decide por presencia explícita: el fallback de Boot pagina hasta sin params. */
     @GetMapping
-    public List<OrderResponse> list(@RequestParam(required = false) Long storeId,
-                                    @RequestParam(required = false) Order.Status status) {
-        return orderService.list(storeId, status);
+    public Object list(@RequestParam(required = false) Long storeId,
+                       @RequestParam(required = false) Order.Status status,
+                       @RequestParam(required = false) Integer page,
+                       @RequestParam(required = false) Integer size,
+                       Pageable pageable) {
+        return page != null || size != null
+                ? orderService.listPage(storeId, status, pageable)
+                : orderService.list(storeId, status);
     }
 
     @GetMapping("/next-number")

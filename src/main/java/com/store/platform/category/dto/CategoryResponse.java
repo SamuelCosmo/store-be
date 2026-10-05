@@ -11,15 +11,17 @@ public record CategoryResponse(
         String name,
         String description,
         String icon,
-        boolean active) {
+        boolean active,
+        long products) {
 
-    public static CategoryResponse from(Category category) {
+    public static CategoryResponse from(Category category, long products) {
         return new CategoryResponse(
                 category.getId(),
                 category.getStores().stream().map(Store::getId).sorted().toList(),
                 category.getName(),
                 category.getDescription(),
                 category.getIcon(),
-                category.isActive());
+                category.isActive(),
+                products);
     }
 }

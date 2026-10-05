@@ -4,12 +4,11 @@ import com.store.platform.category.dto.CategoryRequest;
 import com.store.platform.category.dto.CategoryResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/categories")
@@ -24,9 +23,17 @@ public class CategoryController {
         return ResponseEntity.status(HttpStatus.CREATED).body(categoryService.create(request));
     }
 
+    /** Sin page/size → array completo (terminales/selects); con ellos → Page.
+     *  Se decide por presencia explícita: el fallback de Boot pagina hasta sin params. */
     @GetMapping
-    public List<CategoryResponse> list(@RequestParam(required = false) Long storeId) {
-        return categoryService.list(storeId);
+    public Object list(@RequestParam(required = false) Long storeId,
+                       @RequestParam(required = false) String search,
+                       @RequestParam(required = false) Integer page,
+                       @RequestParam(required = false) Integer size,
+                       Pageable pageable) {
+        return page != null || size != null
+                ? categoryService.listPage(storeId, search, pageable)
+                : categoryService.list(storeId);
     }
 
     @GetMapping("/{id}")

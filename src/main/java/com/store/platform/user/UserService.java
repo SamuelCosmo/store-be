@@ -13,6 +13,8 @@ import com.store.platform.user.dto.UserRequest;
 import com.store.platform.user.dto.UserResponse;
 import com.store.platform.user.dto.UserUpdateRequest;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -68,6 +70,13 @@ public class UserService {
         return userRepository.findByClientId(clientId).stream()
                 .map(UserResponse::from)
                 .toList();
+    }
+
+    /** Versión paginada para la tabla del admin. */
+    @Transactional(readOnly = true)
+    public Page<UserResponse> pageByClient(Long clientId, String search, Pageable pageable) {
+        String q = search == null ? "" : search.trim();
+        return userRepository.pageByClient(clientId, q, pageable).map(UserResponse::from);
     }
 
     @Transactional

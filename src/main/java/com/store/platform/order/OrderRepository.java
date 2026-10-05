@@ -1,5 +1,7 @@
 package com.store.platform.order;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -9,6 +11,10 @@ import java.util.List;
 public interface OrderRepository extends JpaRepository<Order, Long> {
 
     List<Order> findByStoreIdOrderByCreatedAtDesc(Long storeId);
+
+    Page<Order> findByStoreId(Long storeId, Pageable pageable);
+
+    Page<Order> findByStoreIdAndStatus(Long storeId, Order.Status status, Pageable pageable);
 
     long countByStoreIdAndCreatedAtGreaterThanEqual(Long storeId, Instant from);
 

@@ -45,6 +45,11 @@ public class Product {
     @Column(nullable = false)
     private boolean active;
 
+    /** "86'd" — temporarily unavailable: hidden in kiosk, unorderable, toggleable from POS. */
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean soldOut = false;
+
     /** If > 0, the product can be redeemed with physical tokens (drinks). */
     @Column(nullable = false)
     private int tokenCost;

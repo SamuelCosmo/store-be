@@ -3,6 +3,27 @@
 Estado real al 2026-09-28 — lo marcado *(pendiente)* está documentado pero
 sin implementar.
 
+## Convención de paginación ✅
+
+Los `GET` de lista aceptan los params estándar de Spring `Pageable`:
+
+```text
+?page=0&size=10&sort=name,asc&search=ramen
+```
+
+- **Sin `page`/`size`** → devuelven el array completo como siempre
+  (terminales, selects, KDS — compatibilidad conservada).
+- **Con `page` o `size`** → devuelven `Page<T>` de Spring:
+  `{ content: [...], totalElements, totalPages, number, size, ... }`.
+- `sort` = `propiedad,(asc|desc)` — propiedad del entity (`category.name`
+  ordena productos por categoría; `products` en categorías es un conteo
+  dedicado, no una property). Sin sort, cada endpoint aplica su default.
+- `search` = búsqueda case-insensitive en los campos visibles de la tabla
+  (nombre/descripcion/email según la entidad).
+- Endpoints paginados: `GET /api/products`, `GET /api/categories`,
+  `GET /api/clients/{id}/stores`, `GET /api/users`, `GET /api/orders`
+  (este último ordena `createdAt desc` por default y acepta `status=`).
+
 ## Authentication ✅
 
 ```text
@@ -64,6 +85,7 @@ GET    /api/products            # ?storeId=&categoryId=&activeOnly=
 GET    /api/products/{id}
 PUT    /api/products/{id}
 PATCH  /api/products/{id}/active   # activar/desactivar para caja y kiosko
+PATCH  /api/products/{id}/sold-out # "86'd" — agotado temporal (ADMIN/MANAGER/EMPLOYEE)
 DELETE /api/products/{id}
 ```
 
@@ -148,7 +170,7 @@ PUT    /api/inventory/{productId}
 
 ```text
 POST   /api/orders
-GET    /api/orders              # ?storeId=&status= (la cocina filtra por estado)
+GET    /api/orders              # ?storeId=&status=&page=&size=&sort= (página para historial; array para KDS)
 GET    /api/orders/next-number  # → { nextNumber } — folio semanal del ticket
 GET    /api/orders/{id}
 PATCH  /api/orders/{id}/status
@@ -177,7 +199,8 @@ PATCH  /api/orders/{id}/status
 
 - `channel = KIOSK` ⇒ `paymentMethod` solo `CARD`.
 - `storeId` **no va en el body** — se deriva de la sesión autenticada.
-- Validación: productos activos y pertenecientes al store de sesión;
+- Validación: productos activos, no agotados (`soldOut`) y pertenecientes
+  al store de sesión;
   `sizeId`/`extras` deben pertenecer a las asignaciones del producto
   (si no → 400). Cada línea del request es una línea de orden — mismo
   producto con distinto tamaño/extras queda como líneas separadas.
@@ -192,6 +215,11 @@ PATCH  /api/orders/{id}/status
   se devuelven en `OrderItemResponse`.
 - `CANCELLED` permitido hasta `PREPARING` inclusive → restaura inventario y
   `refund_status = REFUNDED` (reembolso manual por staff).
+- Desglose de impuesto persistido: la orden guarda `subtotal`, `taxRate`
+  (snapshot del `taxRate` del cliente al cobrar) y `taxAmount`. Los precios
+  del catálogo **no** incluyen impuesto — el server lo agrega encima:
+  `taxAmount = subtotal × rate/100`, `total = subtotal + taxAmount`.
+  Órdenes anteriores al campo devuelven `subtotal = total`, `taxRate = 0`.
 - Transiciones: `PENDING → PREPARING → READY → COMPLETED` (`PENDING` también
   admite `CONFIRMED`, pero el KDS pasa directo a `PREPARING`).
 - `GET /api/orders/next-number` → `{ "nextNumber": n }` — número del

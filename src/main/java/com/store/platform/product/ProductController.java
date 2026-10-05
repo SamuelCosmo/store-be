@@ -3,14 +3,14 @@ package com.store.platform.product;
 import com.store.platform.product.dto.ActiveRequest;
 import com.store.platform.product.dto.ProductRequest;
 import com.store.platform.product.dto.ProductResponse;
+import com.store.platform.product.dto.SoldOutRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/products")
@@ -25,11 +25,19 @@ public class ProductController {
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.create(request));
     }
 
+    /** Sin page/size → array completo (terminales/selects); con ellos → Page.
+     *  Se decide por presencia explícita: el fallback de Boot pagina hasta sin params. */
     @GetMapping
-    public List<ProductResponse> list(@RequestParam(required = false) Long storeId,
-                                      @RequestParam(required = false) Long categoryId,
-                                      @RequestParam(required = false) Boolean activeOnly) {
-        return productService.list(storeId, categoryId, activeOnly);
+    public Object list(@RequestParam(required = false) Long storeId,
+                       @RequestParam(required = false) Long categoryId,
+                       @RequestParam(required = false) Boolean activeOnly,
+                       @RequestParam(required = false) String search,
+                       @RequestParam(required = false) Integer page,
+                       @RequestParam(required = false) Integer size,
+                       Pageable pageable) {
+        return page != null || size != null
+                ? productService.listPage(storeId, categoryId, activeOnly, search, pageable)
+                : productService.list(storeId, categoryId, activeOnly);
     }
 
     @GetMapping("/{id}")
@@ -47,6 +55,13 @@ public class ProductController {
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ProductResponse setActive(@PathVariable Long id, @Valid @RequestBody ActiveRequest request) {
         return productService.setActive(id, request.active());
+    }
+
+    /** "86'd" toggle — POS staff included: a cashier can mark an item as gone mid-shift. */
+    @PatchMapping("/{id}/sold-out")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
+    public ProductResponse setSoldOut(@PathVariable Long id, @Valid @RequestBody SoldOutRequest request) {
+        return productService.setSoldOut(id, request.soldOut());
     }
 
     @DeleteMapping("/{id}")
