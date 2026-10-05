@@ -5,6 +5,8 @@ import com.store.platform.store.dto.DeviceRequest;
 import com.store.platform.store.dto.DeviceResponse;
 import com.store.platform.store.dto.StoreRequest;
 import com.store.platform.store.dto.StoreResponse;
+import com.store.platform.store.dto.StoreSettingsRequest;
+import com.store.platform.store.dto.StoreSettingsResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -37,6 +39,18 @@ public class StoreController {
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public StoreResponse update(@PathVariable Long id, @Valid @RequestBody StoreRequest request) {
         return storeService.update(id, request, AuthContext.current().clientId());
+    }
+
+    @GetMapping("/{id}/settings")
+    public StoreSettingsResponse getSettings(@PathVariable Long id) {
+        return storeService.getSettings(id, AuthContext.current().clientId());
+    }
+
+    @PutMapping("/{id}/settings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public StoreSettingsResponse updateSettings(@PathVariable Long id,
+                                                @RequestBody StoreSettingsRequest request) {
+        return storeService.updateSettings(id, request, AuthContext.current().clientId());
     }
 
     @PostMapping("/{id}/devices")

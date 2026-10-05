@@ -38,6 +38,15 @@ public class Store {
     @Builder.Default
     private boolean active = true;
 
+    // Per-establishment settings (null = use defaults in StoreSettingsResponse)
+    private String menuName;
+
+    private Integer kitchenOkMin;
+
+    private Integer kitchenWarnMin;
+
+    private Boolean kitchenSound;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

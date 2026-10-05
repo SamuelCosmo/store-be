@@ -2,8 +2,12 @@ package com.store.platform.client;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Map;
 
 @Entity
 @Table(name = "clients")
@@ -30,6 +34,19 @@ public class Client {
 
     @Column(nullable = false)
     private Integer maxKiosksPerStore;
+
+    // Client-level settings (null = use defaults in ClientSettingsResponse)
+    @Column(length = 3)
+    private String currency;
+
+    private BigDecimal taxRate;
+
+    private Integer kioskReceiptSeconds;
+
+    /** Session duration per role, in hours (0 = never close). */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, Integer> sessionHours;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

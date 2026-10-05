@@ -16,6 +16,8 @@ POST   /api/auth/login          # { email, password, storeId } → { token, role
 POST   /api/clients             # abierto en dev — TODO: platform-admin only
 GET    /api/clients/{id}
 GET    /api/clients/{id}/stores
+GET    /api/clients/{id}/settings   # settings del cliente (todos los roles del tenant)
+PUT    /api/clients/{id}/settings   # ADMIN
 ```
 
 ## Stores / Establishments ✅
@@ -27,9 +29,15 @@ PUT    /api/stores/{id}         # name, description, address, businessType, acti
 GET    /api/clients/{id}/stores # listado por cliente (la lista del admin)
 POST   /api/stores/{id}/devices # alta de POS/KIOSK por tienda
 GET    /api/stores/{id}/devices
+GET    /api/stores/{id}/settings   # settings del establecimiento
+PUT    /api/stores/{id}/settings   # ADMIN
 ```
 
 - `active` default `true` al dar de alta; sin DELETE (activar/desactivar).
+- Settings por establecimiento: `{ menuName, kitchenOkMin, kitchenWarnMin,
+  kitchenSound }` — `menuName` vacío → se usa el `name` del store.
+- Settings por cliente: `{ currency, taxRate, kioskReceiptSeconds,
+  sessionHours }` — `sessionHours` es `{ rol: horas }` (0 = no cerrar).
 - Los admins sin `storeId` en su JWT ven todo el catálogo del cliente;
   los demás roles operan solo su tienda de sesión.
 

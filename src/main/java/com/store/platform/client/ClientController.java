@@ -2,6 +2,8 @@ package com.store.platform.client;
 
 import com.store.platform.client.dto.ClientRequest;
 import com.store.platform.client.dto.ClientResponse;
+import com.store.platform.client.dto.ClientSettingsRequest;
+import com.store.platform.client.dto.ClientSettingsResponse;
 import com.store.platform.security.AuthContext;
 import com.store.platform.store.StoreService;
 import com.store.platform.store.dto.StoreResponse;
@@ -10,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -38,6 +41,20 @@ public class ClientController {
     public List<StoreResponse> listStores(@PathVariable Long id) {
         requireOwnClient(id);
         return storeService.listByClient(id);
+    }
+
+    @GetMapping("/{id}/settings")
+    public ClientSettingsResponse getSettings(@PathVariable Long id) {
+        requireOwnClient(id);
+        return clientService.getSettings(id);
+    }
+
+    @PutMapping("/{id}/settings")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ClientSettingsResponse updateSettings(@PathVariable Long id,
+                                                 @RequestBody ClientSettingsRequest request) {
+        requireOwnClient(id);
+        return clientService.updateSettings(id, request);
     }
 
     private void requireOwnClient(Long id) {

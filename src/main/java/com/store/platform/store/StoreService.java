@@ -10,6 +10,8 @@ import com.store.platform.store.dto.DeviceRequest;
 import com.store.platform.store.dto.DeviceResponse;
 import com.store.platform.store.dto.StoreRequest;
 import com.store.platform.store.dto.StoreResponse;
+import com.store.platform.store.dto.StoreSettingsRequest;
+import com.store.platform.store.dto.StoreSettingsResponse;
 import com.store.platform.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
@@ -63,6 +65,22 @@ public class StoreService {
         store.setBusinessType(request.businessType());
         if (request.active() != null) store.setActive(request.active());
         return StoreResponse.from(storeRepository.save(store));
+    }
+
+    public StoreSettingsResponse getSettings(Long id, Long clientId) {
+        return StoreSettingsResponse.from(findOwnedOrThrow(id, clientId));
+    }
+
+    @Transactional
+    public StoreSettingsResponse updateSettings(Long id, StoreSettingsRequest request, Long clientId) {
+        Store store = findOwnedOrThrow(id, clientId);
+        // blank = sin nombre de menú → se usa el nombre del establecimiento
+        store.setMenuName(request.menuName() != null && !request.menuName().isBlank()
+                ? request.menuName().trim() : null);
+        if (request.kitchenOkMin() != null) store.setKitchenOkMin(request.kitchenOkMin());
+        if (request.kitchenWarnMin() != null) store.setKitchenWarnMin(request.kitchenWarnMin());
+        if (request.kitchenSound() != null) store.setKitchenSound(request.kitchenSound());
+        return StoreSettingsResponse.from(storeRepository.save(store));
     }
 
     @Transactional
