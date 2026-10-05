@@ -1,10 +1,13 @@
+server:
+  port: ${PORT:8080}
+
 spring:
   application:
     name: store-platform
   datasource:
-    url: jdbc:postgresql://localhost:5433/storedb
-    username: store
-    password: store
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5433}/${PGDATABASE:storedb}
+    username: ${PGUSER:store}
+    password: ${PGPASSWORD:store}
   jpa:
     hibernate:
       ddl-auto: update
