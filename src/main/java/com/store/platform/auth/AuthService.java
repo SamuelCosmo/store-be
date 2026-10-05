@@ -13,6 +13,7 @@ import com.store.platform.store.Store;
 import com.store.platform.store.StoreRepository;
 import com.store.platform.user.User;
 import com.store.platform.user.UserRepository;
+import com.store.platform.user.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -39,13 +40,14 @@ public class AuthService {
         if (userRepository.existsByClientId(client.getId())) {
             throw new BusinessException("Client already has users — ask your ADMIN to create your account");
         }
-        if (userRepository.existsByEmail(request.email())) {
-            throw new DuplicateResourceException("Email already registered: " + request.email());
+        String email = UserService.normalizeEmail(request.email());
+        if (userRepository.existsByEmailIgnoreCase(email)) {
+            throw new DuplicateResourceException("Email already registered: " + email);
         }
         User user = User.builder()
                 .client(client)
                 .name(request.name())
-                .email(request.email())
+                .email(email)
                 .password(passwordEncoder.encode(request.password()))
                 .role(User.Role.ADMIN)
                 .build();
@@ -55,7 +57,7 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.email())
+        User user = userRepository.findByEmailIgnoreCase(request.email().trim())
                 .filter(User::isActive)
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));

@@ -4,6 +4,7 @@ import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.ResourceNotFoundException;
 import com.store.platform.inventory.InventoryService;
 import com.store.platform.order.dto.NextNumberResponse;
+import com.store.platform.order.dto.OrderItemExtraRequest;
 import com.store.platform.order.dto.OrderItemRequest;
 import com.store.platform.order.dto.OrderRequest;
 import com.store.platform.order.dto.OrderResponse;
@@ -25,10 +26,11 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
-import java.util.LinkedHashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -63,13 +65,13 @@ public class OrderService {
             throw new BusinessException("Kiosk orders only accept CARD payment");
         }
 
-        Map<Long, Integer> quantities = new LinkedHashMap<>();
-        for (OrderItemRequest item : request.items()) {
-            quantities.merge(item.productId(), item.quantity(), Integer::sum);
-        }
-
-        List<Product> products = productRepository.findAllById(quantities.keySet());
-        if (products.size() != quantities.size()) {
+        Set<Long> productIds = request.items().stream()
+                .map(OrderItemRequest::productId)
+                .collect(Collectors.toSet());
+        List<Product> products = productRepository.findAllById(productIds);
+        Map<Long, Product> byId = products.stream()
+                .collect(Collectors.toMap(Product::getId, p -> p));
+        if (products.size() != productIds.size()) {
             throw new ResourceNotFoundException("One or more products not found");
         }
 
@@ -85,22 +87,51 @@ public class OrderService {
                 .build();
 
         BigDecimal total = BigDecimal.ZERO;
-        for (Product product : products) {
+        for (OrderItemRequest item : request.items()) {
+            Product product = byId.get(item.productId());
             if (product.getCategory().getStores().stream().noneMatch(s -> s.getId().equals(storeId))) {
                 throw new BusinessException("Product does not belong to this store: " + product.getName());
             }
             if (!product.isActive()) {
                 throw new BusinessException("Product is not available: " + product.getName());
             }
-            int quantity = quantities.get(product.getId());
-            inventoryService.decrease(product, quantity);
+
+            BigDecimal unit = product.getPrice();
+            String sizeName = null;
+            if (item.sizeId() != null) {
+                var size = product.getSizes().stream()
+                        .filter(s -> s.getId().equals(item.sizeId()))
+                        .findFirst()
+                        .orElseThrow(() -> new BusinessException(
+                                "Size not available for product: " + product.getName()));
+                sizeName = size.getName();
+                unit = unit.add(size.getPrice());
+            }
+
+            List<ItemExtraSnapshot> extras = new ArrayList<>();
+            if (item.extras() != null) {
+                for (OrderItemExtraRequest e : item.extras()) {
+                    var extra = product.getExtras().stream()
+                            .filter(x -> x.getId().equals(e.extraId()))
+                            .findFirst()
+                            .orElseThrow(() -> new BusinessException(
+                                    "Extra not available for product: " + product.getName()));
+                    extras.add(new ItemExtraSnapshot(extra.getName(), extra.getPrice(), e.quantity()));
+                    unit = unit.add(extra.getPrice().multiply(BigDecimal.valueOf(e.quantity())));
+                }
+            }
+
+            inventoryService.decrease(product, item.quantity());
             order.getItems().add(OrderItem.builder()
                     .order(order)
                     .product(product)
-                    .quantity(quantity)
-                    .unitPrice(product.getPrice())
+                    .quantity(item.quantity())
+                    .unitPrice(unit)
+                    .sizeName(sizeName)
+                    .extras(extras)
+                    .notes(item.notes())
                     .build());
-            total = total.add(product.getPrice().multiply(BigDecimal.valueOf(quantity)));
+            total = total.add(unit.multiply(BigDecimal.valueOf(item.quantity())));
         }
         order.setTotal(total);
         return OrderResponse.from(orderRepository.save(order));

@@ -35,6 +35,12 @@ public class SizeController {
         return sizeService.update(id, request);
     }
 
+    @PutMapping("/order")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public List<SizeResponse> reorder(@RequestBody List<Long> orderedIds) {
+        return sizeService.reorder(orderedIds);
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {

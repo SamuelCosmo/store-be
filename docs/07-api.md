@@ -85,6 +85,9 @@ DELETE /api/products/{id}
 - `sku` e `image` opcionales; `tokenCost > 0` = canjeable con fichas.
 - `sizes`/`extras` se resuelven en la response; asignación también desde el
   lado del catálogo vía `productIds`.
+- **Orden en el menú**: la response ordena `sizes` por el orden global del
+  catálogo (`sizes.position` — ver `PUT /api/sizes/order`) y `extras`
+  alfabéticamente. El kiosco preselecciona `sizes[0]` = primer tamaño.
 
 ## Extras ✅ *(nuevo — catálogo a nivel cliente)*
 
@@ -103,8 +106,9 @@ DELETE /api/extras/{id}         # desasocia de productos antes de borrar
 
 ```text
 POST   /api/sizes
-GET    /api/sizes
+GET    /api/sizes                     # ordenados por position (nulls al final)
 PUT    /api/sizes/{id}
+PUT    /api/sizes/order               # body: [ids] en el nuevo orden → setea position
 DELETE /api/sizes/{id}
 ```
 
@@ -157,7 +161,15 @@ PATCH  /api/orders/{id}/status
   "channel": "POS | KIOSK",
   "orderType": "DINE_IN | TAKEAWAY",
   "paymentMethod": "CASH | CARD",
-  "items": [{ "productId": 1, "quantity": 2 }]
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 2,
+      "sizeId": 3,                                       // opcional — debe estar asignado al producto
+      "extras": [{ "extraId": 5, "quantity": 2 }],       // opcional — idem
+      "notes": "sin cebolla"                             // opcional, máx 500
+    }
+  ]
 }
 ```
 
@@ -166,10 +178,18 @@ PATCH  /api/orders/{id}/status
 - `channel = KIOSK` ⇒ `paymentMethod` solo `CARD`.
 - `storeId` **no va en el body** — se deriva de la sesión autenticada.
 - Validación: productos activos y pertenecientes al store de sesión;
-  items duplicados se fusionan. Si el producto tiene inventario
-  configurado lo descuenta en la misma transacción (revienta si no
-  alcanza); sin registro de inventario se trata como stock ilimitado
-  — temporal hasta que aterrice el módulo de inventario.
+  `sizeId`/`extras` deben pertenecer a las asignaciones del producto
+  (si no → 400). Cada línea del request es una línea de orden — mismo
+  producto con distinto tamaño/extras queda como líneas separadas.
+  Si el producto tiene inventario configurado lo descuenta en la misma
+  transacción (revienta si no alcanza); sin registro de inventario se
+  trata como stock ilimitado — temporal hasta que aterrice el módulo de
+  inventario.
+- `unitPrice` lo calcula el servidor: `product.price + size.price +
+  Σ(extra.price × qty)` — el cliente no puede inflar precios. Se guarda
+  snapshot: `sizeName`, `extras[]` (`{name, price, quantity}` en jsonb)
+  y `notes` en `order_items` — sobreviven ediciones/bajas del catálogo y
+  se devuelven en `OrderItemResponse`.
 - `CANCELLED` permitido hasta `PREPARING` inclusive → restaura inventario y
   `refund_status = REFUNDED` (reembolso manual por staff).
 - Transiciones: `PENDING → PREPARING → READY → COMPLETED` (`PENDING` también
@@ -184,7 +204,6 @@ PATCH  /api/orders/{id}/status
 
 - TODO: `cashReceived`/`changeGiven` para pago en efectivo (doc viejo lo
   mencionaba; no implementado).
-- TODO: items con `sizeId`/`extraIds` — la orden no captura tamaño ni extras.
 - TODO: `GET /api/orders/{id}/ticket` — payload para impresión.
 
 ## Tokens (fichas para bebidas) *(pendiente de implementar)*

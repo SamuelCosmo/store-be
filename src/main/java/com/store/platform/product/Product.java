@@ -58,7 +58,7 @@ public class Product {
     @Builder.Default
     private Set<Extra> extras = new HashSet<>();
 
-    /** Sizes offered for this product — shared catalog at client level. */
+    /** Sizes offered for this product — ordered globally via Size.position. */
     @ManyToMany
     @JoinTable(
             name = "product_sizes",

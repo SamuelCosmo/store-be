@@ -3,8 +3,12 @@ package com.store.platform.order;
 import com.store.platform.product.Product;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "order_items")
@@ -30,6 +34,19 @@ public class OrderItem {
     @Column(nullable = false)
     private int quantity;
 
+    /** unitPrice charged = product.price + size.price + Σ(extra.price × qty), snapshotted at order time. */
     @Column(nullable = false)
     private BigDecimal unitPrice;
+
+    /** Size name snapshot — nullable; survives catalog edits/deletes. */
+    private String sizeName;
+
+    /** Extras charged on this item, snapshot as {name, price, quantity}. */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    @Builder.Default
+    private List<ItemExtraSnapshot> extras = new ArrayList<>();
+
+    @Column(columnDefinition = "text")
+    private String notes;
 }

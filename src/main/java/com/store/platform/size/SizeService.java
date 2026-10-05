@@ -34,6 +34,7 @@ public class SizeService {
                 .name(request.name())
                 .price(request.price())
                 .active(request.active() == null || request.active())
+                .position((int) sizeRepository.countByClientId(clientId))
                 .build();
         size = sizeRepository.save(size);
         syncProducts(size, request.productIds(), clientId);
@@ -42,9 +43,20 @@ public class SizeService {
 
     @Transactional(readOnly = true)
     public List<SizeResponse> list() {
-        return sizeRepository.findByClientIdOrderByName(AuthContext.current().clientId()).stream()
+        return sizeRepository.findByClientIdOrderByPositionAscNameAsc(AuthContext.current().clientId()).stream()
                 .map(s -> SizeResponse.from(s, productIds(s.getId())))
                 .toList();
+    }
+
+    /** Global menu order — the request is the ids in their new order. */
+    @Transactional
+    public List<SizeResponse> reorder(List<Long> orderedIds) {
+        Long clientId = AuthContext.current().clientId();
+        for (int i = 0; i < orderedIds.size(); i++) {
+            Size size = findOwnedOrThrow(orderedIds.get(i));
+            size.setPosition(i);
+        }
+        return list();
     }
 
     @Transactional

@@ -6,5 +6,7 @@ import java.util.List;
 
 public interface SizeRepository extends JpaRepository<Size, Long> {
 
-    List<Size> findByClientIdOrderByName(Long clientId);
+    List<Size> findByClientIdOrderByPositionAscNameAsc(Long clientId);
+
+    long countByClientId(Long clientId);
 }

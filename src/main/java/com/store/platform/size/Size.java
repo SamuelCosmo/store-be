@@ -33,4 +33,7 @@ public class Size {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** Menu order across the catalog (null = goes last). */
+    private Integer position;
 }

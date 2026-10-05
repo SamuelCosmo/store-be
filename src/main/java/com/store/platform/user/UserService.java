@@ -32,6 +32,11 @@ public class UserService {
     private final StoreRepository storeRepository;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    /** Emails are stored lowercase — login and uniqueness are case-insensitive. */
+    public static String normalizeEmail(String email) {
+        return email == null ? null : email.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
     @Transactional
     public UserResponse create(Long clientId, UserRequest request) {
         requireSelfPassword(request.currentPassword());
@@ -43,13 +48,14 @@ public class UserService {
     public UserResponse createUnchecked(Long clientId, UserRequest request) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found: " + clientId));
-        if (userRepository.existsByEmail(request.email())) {
-            throw new DuplicateResourceException("Email already registered: " + request.email());
+        String email = normalizeEmail(request.email());
+        if (userRepository.existsByEmailIgnoreCase(email)) {
+            throw new DuplicateResourceException("Email already registered: " + email);
         }
         User user = User.builder()
                 .client(client)
                 .name(request.name())
-                .email(request.email())
+                .email(email)
                 .password(passwordEncoder.encode(request.password()))
                 .role(request.role())
                 .stores(resolveStores(clientId, request.storeIds()))
@@ -75,11 +81,12 @@ public class UserService {
                 throw new BusinessException("You cannot change your own role");
             }
         }
-        if (userRepository.existsByEmailAndIdNot(request.email(), id)) {
-            throw new DuplicateResourceException("Email already registered: " + request.email());
+        String email = normalizeEmail(request.email());
+        if (userRepository.existsByEmailIgnoreCaseAndIdNot(email, id)) {
+            throw new DuplicateResourceException("Email already registered: " + email);
         }
         user.setName(request.name());
-        user.setEmail(request.email());
+        user.setEmail(email);
         if (request.password() != null && !request.password().isBlank()) {
             user.setPassword(passwordEncoder.encode(request.password()));
         }

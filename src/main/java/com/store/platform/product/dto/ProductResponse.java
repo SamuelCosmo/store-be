@@ -1,10 +1,13 @@
 package com.store.platform.product.dto;
 
+import com.store.platform.extra.Extra;
 import com.store.platform.extra.dto.ExtraResponse;
 import com.store.platform.product.Product;
+import com.store.platform.size.Size;
 import com.store.platform.size.dto.SizeResponse;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 
 public record ProductResponse(
@@ -31,7 +34,14 @@ public record ProductResponse(
                 product.getPrice(),
                 product.isActive(),
                 product.getTokenCost(),
-                product.getExtras().stream().map(ExtraResponse::from).toList(),
-                product.getSizes().stream().map(SizeResponse::from).toList());
+                // extras alfabéticos; tamaños en el orden global del catálogo
+                product.getExtras().stream()
+                        .sorted(Comparator.comparing(Extra::getName, String.CASE_INSENSITIVE_ORDER))
+                        .map(ExtraResponse::from).toList(),
+                product.getSizes().stream()
+                        .sorted(Comparator
+                                .comparing((Size s) -> s.getPosition() == null ? Integer.MAX_VALUE : s.getPosition())
+                                .thenComparing(Size::getName))
+                        .map(SizeResponse::from).toList());
     }
 }
