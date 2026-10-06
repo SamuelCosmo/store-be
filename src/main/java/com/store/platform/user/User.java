@@ -22,8 +22,9 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    /** null solo para SUPERADMIN (cuenta de plataforma, sin tenant). */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "client_id", nullable = false)
+    @JoinColumn(name = "client_id")
     private Client client;
 
     @Column(nullable = false)
@@ -61,6 +62,6 @@ public class User {
     }
 
     public enum Role {
-        ADMIN, MANAGER, EMPLOYEE, CUSTOMER, KITCHEN
+        ADMIN, MANAGER, EMPLOYEE, CUSTOMER, KITCHEN, SUPERADMIN
     }
 }

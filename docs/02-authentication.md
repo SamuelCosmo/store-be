@@ -19,6 +19,7 @@ Tras el login, el frontend redirige según el rol del usuario:
 - `ADMIN` / `MANAGER` → Panel Admin
 - `EMPLOYEE` → Caja (POS) o Pantalla de cocina (KDS)
 - `CUSTOMER` → Kiosko
+- `SUPERADMIN` → `/superadmin` (administración de la plataforma)
 
 ## Roles
 
@@ -26,6 +27,9 @@ Tras el login, el frontend redirige según el rol del usuario:
 - `MANAGER`
 - `EMPLOYEE`
 - `CUSTOMER`
+- `SUPERADMIN` — cuenta de plataforma: `users.client_id` es `NULL`, el JWT
+  no lleva `clientId` ni `storeId`, y solo accede a `/api/clients`
+  (listar/editar plan). Se crea por SQL directo, no por la app.
 
 Un usuario pertenece a un **cliente** (`client_id`) y opera uno o varios de
 sus establecimientos (`user_stores`) — ej. un ADMIN puede administrar todos

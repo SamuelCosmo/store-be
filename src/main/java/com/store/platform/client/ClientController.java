@@ -16,6 +16,8 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/clients")
 @RequiredArgsConstructor
@@ -28,6 +30,20 @@ public class ClientController {
     @PostMapping
     public ResponseEntity<ClientResponse> create(@Valid @RequestBody ClientRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(clientService.create(request));
+    }
+
+    /** Plataforma (superadmin): lista todos los tenants. */
+    @GetMapping
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public List<ClientResponse> list() {
+        return clientService.list();
+    }
+
+    /** Plataforma (superadmin): edita nombre + límites del plan. */
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public ClientResponse update(@PathVariable Long id, @Valid @RequestBody ClientRequest request) {
+        return clientService.update(id, request);
     }
 
     @GetMapping("/{id}")
@@ -65,7 +81,9 @@ public class ClientController {
     }
 
     private void requireOwnClient(Long id) {
-        if (!AuthContext.current().clientId().equals(id)) {
+        // SUPERADMIN no tiene clientId — cae en AccessDenied igual que un tenant ajeno
+        Long clientId = AuthContext.current().clientId();
+        if (clientId == null || !clientId.equals(id)) {
             throw new AccessDeniedException("Not your client");
         }
     }

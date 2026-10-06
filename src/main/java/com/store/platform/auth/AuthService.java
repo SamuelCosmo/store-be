@@ -61,7 +61,10 @@ public class AuthService {
                 .filter(User::isActive)
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
-        Long storeId = resolveStore(user, request.storeId());
+        // SUPERADMIN: cuenta de plataforma — sin tienda ni tenant
+        Long storeId = user.getRole() == User.Role.SUPERADMIN
+                ? null
+                : resolveStore(user, request.storeId());
         return toResponse(user, storeId);
     }
 
@@ -95,7 +98,7 @@ public class AuthService {
                 user.getName(),
                 user.getEmail(),
                 user.getRole(),
-                user.getClient().getId(),
+                user.getClient() == null ? null : user.getClient().getId(),
                 storeId);
     }
 }

@@ -34,7 +34,9 @@ POST   /api/auth/login          # { email, password, storeId } → { token, role
 ## Clients (tenants) ✅
 
 ```text
-POST   /api/clients             # abierto en dev — TODO: platform-admin only
+POST   /api/clients             # abierto en dev (onboarding); SUPERADMIN también lo usa
+GET    /api/clients             # SUPERADMIN — lista todos los tenants
+PUT    /api/clients/{id}        # SUPERADMIN — nombre + límites del plan
 GET    /api/clients/{id}
 GET    /api/clients/{id}/stores
 GET    /api/clients/{id}/settings   # settings del cliente (todos los roles del tenant)

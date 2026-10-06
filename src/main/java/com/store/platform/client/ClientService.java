@@ -9,6 +9,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 public class ClientService {
@@ -28,6 +30,22 @@ public class ClientService {
 
     public ClientResponse getById(Long id) {
         return ClientResponse.from(findOrThrow(id));
+    }
+
+    /** Plataforma: todos los tenants. */
+    public List<ClientResponse> list() {
+        return clientRepository.findAll().stream().map(ClientResponse::from).toList();
+    }
+
+    /** Plataforma: nombre + límites del plan. */
+    @Transactional
+    public ClientResponse update(Long id, ClientRequest request) {
+        Client client = findOrThrow(id);
+        client.setName(request.name());
+        client.setMaxStores(request.maxStores());
+        client.setMaxPosPerStore(request.maxPosPerStore());
+        client.setMaxKiosksPerStore(request.maxKiosksPerStore());
+        return ClientResponse.from(clientRepository.save(client));
     }
 
     public ClientSettingsResponse getSettings(Long id) {

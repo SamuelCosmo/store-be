@@ -28,11 +28,14 @@ public class JwtService {
         var builder = Jwts.builder()
                 .subject(String.valueOf(user.getId()))
                 .claim("email", user.getEmail())
-                .claim("clientId", user.getClient().getId())
                 .claim("role", user.getRole().name())
                 .issuedAt(Date.from(Instant.now()))
                 .expiration(Date.from(Instant.now().plusMillis(expirationMs)))
                 .signWith(key);
+        // SUPERADMIN no tiene tenant — el claim queda ausente
+        if (user.getClient() != null) {
+            builder.claim("clientId", user.getClient().getId());
+        }
         if (storeId != null) {
             builder.claim("storeId", storeId);
         }
