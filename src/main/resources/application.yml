@@ -12,12 +12,24 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
 
 app:
   jwt:
     # ponytail: dev default, override with JWT_SECRET in real environments
     secret: ${JWT_SECRET:dev-only-secret-key-change-me-in-production-0123456789abcdef}
     expiration-ms: ${JWT_EXPIRATION_MS:604800000}
+  storage:
+    # Bucket local (adobe/s3mock en docker-compose). En producción apuntar
+    # las env STORAGE_* al bucket real.
+    endpoint: ${STORAGE_ENDPOINT:http://localhost:9090}
+    access-key: ${STORAGE_ACCESS_KEY:store}
+    secret-key: ${STORAGE_SECRET_KEY:storedev123}
+    bucket: ${STORAGE_BUCKET:product-images}
+    public-url: ${STORAGE_PUBLIC_URL:http://localhost:9090/product-images}
 
 springdoc:
   swagger-ui:

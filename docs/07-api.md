@@ -105,6 +105,9 @@ DELETE /api/products/{id}
 ```
 
 - `sku` e `image` opcionales; `tokenCost > 0` = canjeable con fichas.
+- `image` viene de `POST /api/uploads` (multipart `file` → `{url}`) —
+  bucket S3-compatible (`adobe/s3mock` en compose para dev; env
+  `STORAGE_*` apuntan al bucket real en producción).
 - `sizes`/`extras` se resuelven en la response; asignación también desde el
   lado del catálogo vía `productIds`.
 - **Orden en el menú**: la response ordena `sizes` por el orden global del

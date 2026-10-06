@@ -10,5 +10,20 @@ services:
     volumes:
       - store-pgdata:/var/lib/postgresql/data
 
+  # Bucket S3-compatible para imágenes (dev). Adobe S3Mock: acepta cualquier
+  # credencial y sirve GETs anónimos → los <img> leen directo sin política.
+  # En Railway se apunta STORAGE_* al bucket real — la API es la misma.
+  storage:
+    image: adobe/s3mock:latest
+    environment:
+      initialBuckets: product-images
+      root: /data                  # persiste a disco en vez de memoria
+      retainFilesOnExit: "true"
+    ports:
+      - "9090:9090"
+    volumes:
+      - store-s3mock:/data
+
 volumes:
   store-pgdata:
+  store-s3mock:
