@@ -4,6 +4,7 @@ import com.store.platform.order.dto.NextNumberResponse;
 import com.store.platform.order.dto.OrderRequest;
 import com.store.platform.order.dto.OrderResponse;
 import com.store.platform.order.dto.StatusRequest;
+import com.store.platform.order.dto.TicketResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
@@ -45,6 +46,13 @@ public class OrderController {
     @GetMapping("/{id}")
     public OrderResponse getById(@PathVariable Long id) {
         return orderService.getById(id);
+    }
+
+    /** Ticket autocontenido para imprimir/reimprimir — cualquier rol
+     *  autenticado (incl. CUSTOMER del kiosco); scoping por store de sesión. */
+    @GetMapping("/{id}/ticket")
+    public TicketResponse getTicket(@PathVariable Long id) {
+        return orderService.getTicket(id);
     }
 
     @PatchMapping("/{id}/status")

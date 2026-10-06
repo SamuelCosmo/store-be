@@ -8,6 +8,7 @@ import com.store.platform.order.dto.OrderItemExtraRequest;
 import com.store.platform.order.dto.OrderItemRequest;
 import com.store.platform.order.dto.OrderRequest;
 import com.store.platform.order.dto.OrderResponse;
+import com.store.platform.order.dto.TicketResponse;
 import com.store.platform.product.Product;
 import com.store.platform.product.ProductRepository;
 import com.store.platform.security.AuthContext;
@@ -168,6 +169,15 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> list(Long storeId, Order.Status status) {
+        AuthUser auth = AuthContext.current();
+        // admin sin tienda activa → historial de todo el cliente
+        if (storeId == null && auth.storeId() == null && auth.role() == User.Role.ADMIN) {
+            List<Order> orders = status == null
+                    ? orderRepository.findByStoreClientIdOrderByCreatedAtDesc(auth.clientId())
+                    : orderRepository.findByStoreClientIdAndStatusOrderByCreatedAtDesc(
+                            auth.clientId(), status);
+            return orders.stream().map(OrderResponse::from).toList();
+        }
         Long scope = storeService.resolveScope(storeId);
         List<Order> orders = status == null
                 ? orderRepository.findByStoreIdOrderByCreatedAtDesc(scope)
@@ -177,12 +187,20 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public Page<OrderResponse> listPage(Long storeId, Order.Status status, Pageable pageable) {
-        Long scope = storeService.resolveScope(storeId);
+        AuthUser auth = AuthContext.current();
         // historial: más reciente primero salvo sort explícito
         Pageable sorted = pageable.getSort().isUnsorted()
                 ? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
                         Sort.by("createdAt").descending())
                 : pageable;
+        // admin sin tienda activa → historial de todo el cliente
+        if (storeId == null && auth.storeId() == null && auth.role() == User.Role.ADMIN) {
+            Page<Order> orders = status == null
+                    ? orderRepository.findByStoreClientId(auth.clientId(), sorted)
+                    : orderRepository.findByStoreClientIdAndStatus(auth.clientId(), status, sorted);
+            return orders.map(OrderResponse::from);
+        }
+        Long scope = storeService.resolveScope(storeId);
         Page<Order> orders = status == null
                 ? orderRepository.findByStoreId(scope, sorted)
                 : orderRepository.findByStoreIdAndStatus(scope, status, sorted);
@@ -192,6 +210,11 @@ public class OrderService {
     @Transactional(readOnly = true)
     public OrderResponse getById(Long id) {
         return OrderResponse.from(findScopedOrThrow(id));
+    }
+
+    @Transactional(readOnly = true)
+    public TicketResponse getTicket(Long id) {
+        return TicketResponse.from(findScopedOrThrow(id));
     }
 
     @Transactional

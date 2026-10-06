@@ -176,6 +176,9 @@ POST   /api/orders
 GET    /api/orders              # ?storeId=&status=&page=&size=&sort= (página para historial; array para KDS)
 GET    /api/orders/next-number  # → { nextNumber } — folio semanal del ticket
 GET    /api/orders/{id}
+GET    /api/orders/{id}/ticket   # OrderResponse + storeName (menuName ?: name)
+                               #  + storeAddress — payload autocontenido para
+                               #  imprimir/reimprimir; cualquier rol (kiosco incl.)
 PATCH  /api/orders/{id}/status
 ```
 
@@ -235,7 +238,10 @@ PATCH  /api/orders/{id}/status
 
 - TODO: `cashReceived`/`changeGiven` para pago en efectivo (doc viejo lo
   mencionaba; no implementado).
-- TODO: `GET /api/orders/{id}/ticket` — payload para impresión.
+- `GET /api/orders/{id}/ticket` → `TicketResponse` — los mismos campos de
+  `OrderResponse` más `storeName` (`menuName` del store si existe, si no
+  `name`) y `storeAddress`. Mismo scoping por store de sesión; abierto a
+  CUSTOMER para que el kiosco pueda imprimir su ticket.
 
 ## Tokens (fichas para bebidas) *(pendiente de implementar)*
 

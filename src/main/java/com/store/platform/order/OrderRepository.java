@@ -25,4 +25,13 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     @EntityGraph(attributePaths = { "items", "items.product", "user" })
     List<Order> findByStoreClientIdAndCreatedAtBetween(Long clientId, Instant from, Instant to);
+
+    // admin sin tienda activa → órdenes de todo el cliente
+    List<Order> findByStoreClientIdOrderByCreatedAtDesc(Long clientId);
+
+    List<Order> findByStoreClientIdAndStatusOrderByCreatedAtDesc(Long clientId, Order.Status status);
+
+    Page<Order> findByStoreClientId(Long clientId, Pageable pageable);
+
+    Page<Order> findByStoreClientIdAndStatus(Long clientId, Order.Status status, Pageable pageable);
 }
