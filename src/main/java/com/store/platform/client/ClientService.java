@@ -25,6 +25,7 @@ public class ClientService {
                 .maxPosPerStore(request.maxPosPerStore())
                 .maxKiosksPerStore(request.maxKiosksPerStore())
                 .build();
+        // TODO: crear la cuenta administrador del cliente (User con rol ADMIN, email + contraseña)
         return ClientResponse.from(clientRepository.save(client));
     }
 

@@ -8,6 +8,8 @@ import java.util.List;
 
 public record OrderResponse(
         Long id,
+        /** Folio semanal por tienda; fallback a id para órdenes anteriores. */
+        Long ticketNumber,
         Long storeId,
         Long userId,
         Order.Channel channel,
@@ -27,6 +29,9 @@ public record OrderResponse(
         BigDecimal taxRate = order.getTaxRate() == null ? BigDecimal.ZERO : order.getTaxRate();
         return new OrderResponse(
                 order.getId(),
+                order.getTicketNumber() != null
+                        ? order.getTicketNumber().longValue()
+                        : order.getId(),
                 order.getStore().getId(),
                 order.getUser().getId(),
                 order.getChannel(),

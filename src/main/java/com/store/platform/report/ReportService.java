@@ -66,6 +66,8 @@ public class ReportService {
                 .map(Order::getTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // TODO: métrica de pedidos a tiempo vs atrasados (requiere timestamps de
+        //  preparación/entrega en Order o un umbral de tiempo por tienda)
         return new DashboardResponse(
                 totalSales,
                 sold.size(),

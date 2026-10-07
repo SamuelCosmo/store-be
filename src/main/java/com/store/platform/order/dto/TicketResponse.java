@@ -11,6 +11,7 @@ import java.util.List;
  *  más el nombre/dirección del establecimiento (menuName gana sobre name). */
 public record TicketResponse(
         Long id,
+        Long ticketNumber,
         Long storeId,
         String storeName,
         String storeAddress,
@@ -34,7 +35,7 @@ public record TicketResponse(
                 ? store.getMenuName()
                 : store.getName();
         return new TicketResponse(
-                o.id(), store.getId(), name, store.getAddress(),
+                o.id(), o.ticketNumber(), store.getId(), name, store.getAddress(),
                 o.userId(), o.channel(), o.orderType(), o.paymentMethod(),
                 o.status(), o.refundStatus(), o.subtotal(), o.taxRate(),
                 o.taxAmount(), o.total(), o.createdAt(), o.items());

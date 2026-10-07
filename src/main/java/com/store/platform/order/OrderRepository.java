@@ -4,6 +4,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
 import java.util.List;
@@ -16,7 +18,10 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
 
     Page<Order> findByStoreIdAndStatus(Long storeId, Order.Status status, Pageable pageable);
 
-    long countByStoreIdAndCreatedAtGreaterThanEqual(Long storeId, Instant from);
+    /** Mayor folio de la semana (desde `from`) — null-safe para el primero. */
+    @Query("select coalesce(max(o.ticketNumber), 0) from Order o "
+            + "where o.store.id = :storeId and o.createdAt >= :from")
+    int maxTicketNumberSince(@Param("storeId") Long storeId, @Param("from") Instant from);
 
     List<Order> findByStoreIdAndStatusOrderByCreatedAtDesc(Long storeId, Order.Status status);
 

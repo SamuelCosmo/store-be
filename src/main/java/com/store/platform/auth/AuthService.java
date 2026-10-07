@@ -62,6 +62,8 @@ public class AuthService {
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
         // SUPERADMIN: cuenta de plataforma — sin tienda ni tenant
+        // TODO: al iniciar sesión en cocina, caja o kiosco, seleccionar el
+        //  establecimiento donde opera la sesión
         Long storeId = user.getRole() == User.Role.SUPERADMIN
                 ? null
                 : resolveStore(user, request.storeId());

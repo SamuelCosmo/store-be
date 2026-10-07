@@ -176,7 +176,6 @@ PUT    /api/inventory/{productId}
 ```text
 POST   /api/orders
 GET    /api/orders              # ?storeId=&status=&page=&size=&sort= (página para historial; array para KDS)
-GET    /api/orders/next-number  # → { nextNumber } — folio semanal del ticket
 GET    /api/orders/{id}
 GET    /api/orders/{id}/ticket   # OrderResponse + storeName (menuName ?: name)
                                #  + storeAddress — payload autocontenido para
@@ -230,18 +229,20 @@ PATCH  /api/orders/{id}/status
   Órdenes anteriores al campo devuelven `subtotal = total`, `taxRate = 0`.
 - Transiciones: `PENDING → PREPARING → READY → COMPLETED` (`PENDING` también
   admite `CONFIRMED`, pero el KDS pasa directo a `PREPARING`).
-- `GET /api/orders/next-number` → `{ "nextNumber": n }` — número del
-  siguiente ticket de la semana en el store de sesión (conteo de órdenes
-  desde el lunes 00:00 + 1; se resetea cada lunes, zona horaria del
-  servidor). Es el folio que el POS/kiosco muestra en el encabezado del
-  ticket.
+- `OrderResponse.ticketNumber` — folio semanal consecutivo por tienda,
+  persistido en `orders.ticket_number` al crear (max+1 desde el lunes
+  00:00, timezone del servidor; lock pesimista sobre el store evita
+  duplicados entre cajas/kioscos en paralelo). Es el folio que se muestra
+  en POS/KDS/`/orders` y se imprime en el ticket; órdenes anteriores al
+  campo devuelven el `id` como fallback.
 
 **Pendiente en órdenes:**
 
 - TODO: `cashReceived`/`changeGiven` para pago en efectivo (doc viejo lo
   mencionaba; no implementado).
 - `GET /api/orders/{id}/ticket` → `TicketResponse` — los mismos campos de
-  `OrderResponse` más `storeName` (`menuName` del store si existe, si no
+  `OrderResponse` (incl. `ticketNumber`) más `storeName` (`menuName` del
+  store si existe, si no
   `name`) y `storeAddress`. Mismo scoping por store de sesión; abierto a
   CUSTOMER para que el kiosco pueda imprimir su ticket.
 

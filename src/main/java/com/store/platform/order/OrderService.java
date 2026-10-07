@@ -3,7 +3,6 @@ package com.store.platform.order;
 import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.ResourceNotFoundException;
 import com.store.platform.inventory.InventoryService;
-import com.store.platform.order.dto.NextNumberResponse;
 import com.store.platform.order.dto.OrderItemExtraRequest;
 import com.store.platform.order.dto.OrderItemRequest;
 import com.store.platform.order.dto.OrderRequest;
@@ -13,6 +12,7 @@ import com.store.platform.product.Product;
 import com.store.platform.product.ProductRepository;
 import com.store.platform.security.AuthContext;
 import com.store.platform.security.AuthUser;
+import com.store.platform.store.Store;
 import com.store.platform.store.StoreRepository;
 import com.store.platform.store.StoreService;
 import com.store.platform.user.User;
@@ -71,6 +71,10 @@ public class OrderService {
             throw new BusinessException("Kiosk orders only accept CARD payment");
         }
 
+        // lock del store: serializa la asignación del folio entre cajas/kioscos
+        Store store = storeRepository.findByIdForUpdate(storeId)
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found: " + storeId));
+
         Set<Long> productIds = request.items().stream()
                 .map(OrderItemRequest::productId)
                 .collect(Collectors.toSet());
@@ -82,7 +86,7 @@ public class OrderService {
         }
 
         Order order = Order.builder()
-                .store(storeRepository.getReferenceById(storeId))
+                .store(store)
                 .user(userRepository.getReferenceById(auth.userId()))
                 .channel(request.channel())
                 .orderType(request.orderType())
@@ -152,19 +156,18 @@ public class OrderService {
         order.setTaxRate(rate);
         order.setTaxAmount(taxAmount);
         order.setTotal(total.add(taxAmount));
+        // folio semanal consecutivo — con el lock del store no hay duplicados
+        order.setTicketNumber(
+                orderRepository.maxTicketNumberSince(storeId, weekStart()) + 1);
         return OrderResponse.from(orderRepository.save(order));
     }
 
-    /** Next ticket number for this store's week (resets Monday 00:00, server timezone). */
-    @Transactional(readOnly = true)
-    public NextNumberResponse nextWeeklyNumber() {
-        Instant weekStart = LocalDate.now()
+    /** Lunes 00:00 de la semana actual (timezone del servidor). */
+    private Instant weekStart() {
+        return LocalDate.now()
                 .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
                 .atStartOfDay(ZoneId.systemDefault())
                 .toInstant();
-        long count = orderRepository.countByStoreIdAndCreatedAtGreaterThanEqual(
-                AuthContext.requireStoreId(), weekStart);
-        return new NextNumberResponse(count + 1);
     }
 
     @Transactional(readOnly = true)

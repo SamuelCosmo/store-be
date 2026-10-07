@@ -64,6 +64,10 @@ public class Order {
     /** Tax added on top of subtotal (total = subtotal + taxAmount). */
     private BigDecimal taxAmount;
 
+    /** Folio semanal consecutivo por tienda — se asigna al crear dentro de la
+     *  transacción (lock pesimista sobre el store). Nullable: órdenes viejas. */
+    private Integer ticketNumber;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();

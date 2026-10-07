@@ -1,6 +1,5 @@
 package com.store.platform.order;
 
-import com.store.platform.order.dto.NextNumberResponse;
 import com.store.platform.order.dto.OrderRequest;
 import com.store.platform.order.dto.OrderResponse;
 import com.store.platform.order.dto.StatusRequest;
@@ -36,11 +35,6 @@ public class OrderController {
         return page != null || size != null
                 ? orderService.listPage(storeId, status, pageable)
                 : orderService.list(storeId, status);
-    }
-
-    @GetMapping("/next-number")
-    public NextNumberResponse nextNumber() {
-        return orderService.nextWeeklyNumber();
     }
 
     @GetMapping("/{id}")

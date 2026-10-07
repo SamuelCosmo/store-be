@@ -21,17 +21,20 @@ Client (tenant: restaurante, café, etc.)
         ├── Inventory       ← 1:1 con Product
         │
         └── Order           ← channel (POS/KIOSK), orderType, paymentMethod
+               │              subtotal/taxRate/taxAmount persistidos
                │
-               └── OrderItem
-                       │
-                       └── Product   ← TODO: sizeId/extraIds por item
+               └── OrderItem    ← snapshot: unitPrice, sizeId+sizeName,
+                       │          extras (jsonb), notes
+                       └── Product
 ```
 
 ## Tablas
 
 - `clients` *(nuevo — tenant/negocio que compra el producto)*
 - `stores` *(establecimientos; FK → `clients`)*
-- `users` *(FK → `clients`; staff/admin/kiosko)*
+- `users` *(FK → `clients` — **nullable** para `SUPERADMIN`, que no tiene
+  tenant; staff/admin/kiosko. Roles: `ADMIN`/`MANAGER`/`EMPLOYEE`/
+  `KITCHEN`/`CUSTOMER`/`SUPERADMIN`)*
 - `user_stores` *(N:M — en qué establecimientos del cliente opera el usuario;
   el ADMIN puede tener varios)*
 - `categories` *(N:M con stores via `category_stores`)*
@@ -60,6 +63,12 @@ Client (tenant: restaurante, café, etc.)
 > no altera constraints existentes:
 > `ALTER TABLE users DROP CONSTRAINT users_role_check;` + `ADD ... CHECK
 > (role = ANY (...))` incluyendo el valor nuevo.
+>
+> **Lo mismo para `NOT NULL`:** `update` tampoco quita nullability — al
+> hacer `users.client_id` nullable (rol `SUPERADMIN`) hay que correr en
+> DBs existentes (incluida producción/Railway):
+> `ALTER TABLE users ALTER COLUMN client_id DROP NOT NULL;`
+> En una DB nueva ambos constraints ya nacen correctos.
 
 ## Relaciones clave
 
@@ -78,16 +87,24 @@ Client (tenant: restaurante, café, etc.)
 | `extras`      | FK → `clients` (catálogo del tenant), `name`, `price`, `active` |
 | `sizes`       | FK → `clients` (catálogo del tenant), `name`, `price`, `active` |
 | `products`    | FK → `categories`, `active` (visible en caja/kiosko),         |
-|               | `sku`, `image` (URL — upload pendiente),                    |
+|               | `sold_out` (86'd — oculto en kiosco, rechazado al ordenar),   |
+|               | `sku`, `image` (URL pública — upload vía `POST /api/uploads`  |
+|               | al bucket S3, keys `clients/{id}/stores/{id}/products/`),     |
 |               | `token_cost` — si > 0, canjeable con fichas (bebidas);        |
 |               | N:M → `extras`/`sizes` via `product_extras`/`product_sizes` |
 | `inventory`   | FK único → `products` (1:1)                                   |
 | `orders`      | FK → `stores`, FK → `users` (staff, o cuenta genérica del     |
 |               | kiosko),                                                      |
+|               | `status` (PENDING/PREPARING/READY/COMPLETED/CANCELLED),       |
 |               | `channel` (POS/KIOSK), `order_type` (DINE_IN/TAKEAWAY),       |
 |               | `payment_method` (CASH/CARD), `refund_status`                 |
-|               | (NONE/REFUNDED — se marca al cancelar una orden pagada)       |
-| `order_items` | FK → `orders`, FK → `products`                                |
+|               | (NONE/REFUNDED — se marca al cancelar una orden pagada),      |
+|               | `subtotal`, `tax_rate`, `tax_amount`, `total` — snapshot del  |
+|               | cobro al momento de crearla (no recalcula con settings)       |
+| `order_items` | FK → `orders`, FK → `products` — snapshot por línea:          |
+|               | `unit_price` (base + size al cobrar), `quantity`, `size_id` + |
+|               | `size_name`, `extras` (jsonb: nombre+precio por línea),       |
+|               | `notes` — sobrevive cambios de catálogo/precios               |
 | `token_transactions`| FK → `stores`, `type` (PURCHASE/REDEMPTION/ADJUSTMENT),       |
 |                     | `quantity`, FK → `users` (staff que vendió/canjeó — las       |
 |                     | fichas son físicas, sin wallet), FK opcional → `products`     |
@@ -96,8 +113,11 @@ Client (tenant: restaurante, café, etc.)
 | `reservations`| FK → `tables`, `date`, `time_slot`, `party_size`,             |
 |               | `customer_name`, `phone`, `status` (PENDING/CONFIRMED/        |
 |               | SEATED/CANCELLED/NO_SHOW) — sin solapamientos por mesa        |
-| `tickets`     | FK → `orders` (o `token_transactions`), `ticket_number`       |
-|               | consecutivo por `stores`, `printed_at`                        |
+| `tickets`     | **pendiente de implementar** — diseño: FK → `orders` (o       |
+|               | `token_transactions`), `ticket_number` consecutivo por        |
+|               | `stores`, `printed_at`. Hoy el ticket se arma al vuelo desde  |
+|               | `orders` (`GET /api/orders/{id}/ticket`) y el folio mostrado  |
+|               | es `#id` — falta persistir el consecutivo semanal por store   |
 
 ## Integridad multi-tenant
 
