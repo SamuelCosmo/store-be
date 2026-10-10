@@ -13,6 +13,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     Optional<User> findByEmailIgnoreCase(String email);
 
+    /** El admin "principal" del tenant (el primero creado). */
+    Optional<User> findFirstByClientIdAndRoleOrderByIdAsc(Long clientId, User.Role role);
+
     boolean existsByEmailIgnoreCase(String email);
 
     boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);

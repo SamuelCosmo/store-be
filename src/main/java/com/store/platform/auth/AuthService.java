@@ -3,6 +3,7 @@ package com.store.platform.auth;
 import com.store.platform.auth.dto.AuthResponse;
 import com.store.platform.auth.dto.LoginRequest;
 import com.store.platform.auth.dto.RegisterRequest;
+import com.store.platform.auth.dto.StoreOption;
 import com.store.platform.client.Client;
 import com.store.platform.client.ClientRepository;
 import com.store.platform.common.exception.BusinessException;
@@ -21,6 +22,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -62,21 +65,36 @@ public class AuthService {
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
         // SUPERADMIN: cuenta de plataforma — sin tienda ni tenant
-        // TODO: al iniciar sesión en cocina, caja o kiosco, seleccionar el
-        //  establecimiento donde opera la sesión
         Long storeId = user.getRole() == User.Role.SUPERADMIN
                 ? null
                 : resolveStore(user, request.storeId());
         return toResponse(user, storeId);
     }
 
+    /** Tiendas elegibles de la cuenta — el front las pide cuando login
+     *  responde "storeId required" para mostrar el selector. */
+    @Transactional(readOnly = true)
+    public List<StoreOption> storesForLogin(LoginRequest request) {
+        User user = userRepository.findByEmailIgnoreCase(request.email().trim())
+                .filter(User::isActive)
+                .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
+                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+        return user.getStores().stream()
+                .map(s -> new StoreOption(s.getId(), s.getName()))
+                .toList();
+    }
+
     private Long resolveStore(User user, Long requestedStoreId) {
         if (requestedStoreId == null) {
+            // ADMIN opera todo el cliente desde el panel — no elige tienda en
+            // el login; con 1 asignada se resuelve sola como siempre
+            if (user.getRole() == User.Role.ADMIN) {
+                return user.getStores().size() == 1
+                        ? user.getStores().iterator().next().getId()
+                        : null;
+            }
             if (user.getStores().size() == 1) {
                 return user.getStores().iterator().next().getId();
-            }
-            if (user.getStores().isEmpty() && user.getRole() == User.Role.ADMIN) {
-                return null; // admin without stores yet — picks one after creating it
             }
             throw new BusinessException("storeId required — your account operates multiple stores");
         }

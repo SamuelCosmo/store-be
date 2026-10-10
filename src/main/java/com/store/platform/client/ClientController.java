@@ -1,5 +1,7 @@
 package com.store.platform.client;
 
+import com.store.platform.client.dto.ClientAdminRequest;
+import com.store.platform.client.dto.ClientAdminResponse;
 import com.store.platform.client.dto.ClientRequest;
 import com.store.platform.client.dto.ClientResponse;
 import com.store.platform.client.dto.ClientSettingsRequest;
@@ -44,6 +46,22 @@ public class ClientController {
     @PreAuthorize("hasRole('SUPERADMIN')")
     public ClientResponse update(@PathVariable Long id, @Valid @RequestBody ClientRequest request) {
         return clientService.update(id, request);
+    }
+
+    /** Plataforma (superadmin): datos del admin del tenant — prefill del modal. */
+    @GetMapping("/{id}/admin")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public ClientAdminResponse getAdmin(@PathVariable Long id) {
+        return clientService.getAdmin(id);
+    }
+
+    /** Plataforma (superadmin): edita el admin del tenant — requiere la
+     *  contraseña del superadmin en `superadminPassword`. */
+    @PutMapping("/{id}/admin")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public ClientAdminResponse updateAdmin(@PathVariable Long id,
+                                           @Valid @RequestBody ClientAdminRequest request) {
+        return clientService.updateAdmin(id, request);
     }
 
     @GetMapping("/{id}")

@@ -122,7 +122,13 @@ public class CategoryService {
 
     @Transactional
     public void delete(Long id) {
-        categoryRepository.delete(findScopedOrThrow(id));
+        Category category = findScopedOrThrow(id);
+        long linked = productRepository.countByCategoryId(category.getId());
+        if (linked > 0) {
+            throw new BusinessException("La categoría tiene " + linked
+                    + " producto(s) enlazado(s) — desvincúlalos antes de eliminarla");
+        }
+        categoryRepository.delete(category);
     }
 
     /** Category must be assigned to a store the caller may operate. */

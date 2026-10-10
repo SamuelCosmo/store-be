@@ -3,6 +3,7 @@ package com.store.platform.auth;
 import com.store.platform.auth.dto.AuthResponse;
 import com.store.platform.auth.dto.LoginRequest;
 import com.store.platform.auth.dto.RegisterRequest;
+import com.store.platform.auth.dto.StoreOption;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -27,5 +30,12 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    /** Tiendas elegibles de la cuenta — se consulta tras el error
+     *  "storeId required" para que el login muestre el selector. */
+    @PostMapping("/stores")
+    public List<StoreOption> stores(@Valid @RequestBody LoginRequest request) {
+        return authService.storesForLogin(request);
     }
 }

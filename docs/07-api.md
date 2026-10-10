@@ -29,14 +29,27 @@ Los `GET` de lista aceptan los params estándar de Spring `Pageable`:
 ```text
 POST   /api/auth/register       # solo crea el PRIMER usuario (ADMIN) del tenant
 POST   /api/auth/login          # { email, password, storeId } → { token, role, ... }
+POST   /api/auth/stores         # { email, password } → [{id, name}] — tiendas
+                                # elegibles cuando login responde "storeId
+                                # required" (roles operativos con varias
+                                # asignadas; el ADMIN nunca elige — entra
+                                # client-wide y filtra tiendas por página)
 ```
 
 ## Clients (tenants) ✅
 
 ```text
 POST   /api/clients             # abierto en dev (onboarding); SUPERADMIN también lo usa
+                                # + { adminName, adminEmail, adminPassword }
+                                # opcionales → crea el ADMIN del tenant en el
+                                # mismo commit
 GET    /api/clients             # SUPERADMIN — lista todos los tenants
 PUT    /api/clients/{id}        # SUPERADMIN — nombre + límites del plan
+GET    /api/clients/{id}/admin  # SUPERADMIN — datos del admin del tenant
+PUT    /api/clients/{id}/admin  # SUPERADMIN — {adminName, adminEmail,
+                                #  adminPassword?, superadminPassword} — exige
+                                #  la contraseña del superadmin; la nueva del
+                                #  admin valida las mismas reglas de usuarios
 GET    /api/clients/{id}
 GET    /api/clients/{id}/stores
 GET    /api/clients/{id}/settings   # settings del cliente (todos los roles del tenant)
@@ -78,6 +91,8 @@ DELETE /api/categories/{id}
   no un `store_id` único. Admin sin tienda debe mandar `storeIds`.
 - Campos: `name`, `description`, `icon` (string, mappeado en el frontend),
   `active` (default `true`).
+- `DELETE` rechaza con 400 si la categoría tiene productos enlazados —
+  hay que desvincularlos primero (no hay cascada).
 
 ## Products ✅
 
