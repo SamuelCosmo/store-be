@@ -112,13 +112,16 @@ public class AuthService {
     }
 
     private AuthResponse toResponse(User user, Long storeId) {
+        Client client = user.getClient();
         return new AuthResponse(
                 jwtService.generate(user, storeId),
                 user.getId(),
                 user.getName(),
                 user.getEmail(),
                 user.getRole(),
-                user.getClient() == null ? null : user.getClient().getId(),
+                client == null ? null : client.getId(),
+                client == null ? null : client.getName(),
+                client == null ? null : client.getLogoUrl(),
                 storeId);
     }
 }

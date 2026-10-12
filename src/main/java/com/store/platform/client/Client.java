@@ -25,6 +25,9 @@ public class Client {
     @Column(nullable = false)
     private String name;
 
+    /** Logo de la empresa del tenant (URL pública del bucket). */
+    private String logoUrl;
+
     /** Plan limits — set by the platform when onboarding the client. */
     @Column(nullable = false)
     private Integer maxStores;

@@ -21,6 +21,13 @@ public record OrderResponse(
         BigDecimal subtotal,
         BigDecimal taxRate,
         BigDecimal taxAmount,
+        /** Solo pagos en efectivo — null en CARD. */
+        BigDecimal cashReceived,
+        BigDecimal changeGiven,
+        /** Nombre del negocio del tenant — encabezado del recibo/ticket. */
+        String clientName,
+        /** Logo del tenant — encabezado del recibo/ticket. */
+        String logoUrl,
         Instant createdAt,
         List<OrderItemResponse> items) {
 
@@ -43,6 +50,14 @@ public record OrderResponse(
                 order.getSubtotal() == null ? order.getTotal() : order.getSubtotal(),
                 taxRate,
                 order.getTaxAmount() == null ? BigDecimal.ZERO : order.getTaxAmount(),
+                order.getCashReceived(),
+                order.getChangeGiven(),
+                order.getStore().getClient() == null
+                        ? null
+                        : order.getStore().getClient().getName(),
+                order.getStore().getClient() == null
+                        ? null
+                        : order.getStore().getClient().getLogoUrl(),
                 order.getCreatedAt(),
                 order.getItems().stream().map(OrderItemResponse::from).toList());
     }

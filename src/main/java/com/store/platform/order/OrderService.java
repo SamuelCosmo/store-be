@@ -156,6 +156,15 @@ public class OrderService {
         order.setTaxRate(rate);
         order.setTaxAmount(taxAmount);
         order.setTotal(total.add(taxAmount));
+        // efectivo recibido → cambio calculado server-side (solo CASH)
+        if (request.paymentMethod() == Order.PaymentMethod.CASH
+                && request.cashReceived() != null) {
+            if (request.cashReceived().compareTo(order.getTotal()) < 0) {
+                throw new BusinessException("Cash received is less than the total");
+            }
+            order.setCashReceived(request.cashReceived());
+            order.setChangeGiven(request.cashReceived().subtract(order.getTotal()));
+        }
         // folio semanal consecutivo — con el lock del store no hay duplicados
         order.setTicketNumber(
                 orderRepository.maxTicketNumberSince(storeId, weekStart()) + 1);

@@ -15,6 +15,10 @@ public record TicketResponse(
         Long storeId,
         String storeName,
         String storeAddress,
+        /** Nombre del negocio del tenant — encabezado del ticket. */
+        String clientName,
+        /** Logo del tenant para el encabezado del ticket. */
+        String logoUrl,
         Long userId,
         Order.Channel channel,
         Order.OrderType orderType,
@@ -25,6 +29,8 @@ public record TicketResponse(
         BigDecimal taxRate,
         BigDecimal taxAmount,
         BigDecimal total,
+        BigDecimal cashReceived,
+        BigDecimal changeGiven,
         Instant createdAt,
         List<OrderItemResponse> items) {
 
@@ -36,8 +42,11 @@ public record TicketResponse(
                 : store.getName();
         return new TicketResponse(
                 o.id(), o.ticketNumber(), store.getId(), name, store.getAddress(),
+                store.getClient().getName(),
+                store.getClient().getLogoUrl(),
                 o.userId(), o.channel(), o.orderType(), o.paymentMethod(),
                 o.status(), o.refundStatus(), o.subtotal(), o.taxRate(),
-                o.taxAmount(), o.total(), o.createdAt(), o.items());
+                o.taxAmount(), o.total(), o.cashReceived(), o.changeGiven(),
+                o.createdAt(), o.items());
     }
 }

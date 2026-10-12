@@ -20,5 +20,12 @@ public class UploadController {
         return new UploadResponse(storageService.uploadProductImage(file));
     }
 
+    /** Logo del tenant → `clients/{id}/brand/` — a nivel cliente, solo ADMIN. */
+    @PostMapping(value = "/brand", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public UploadResponse uploadBrand(@RequestParam("file") MultipartFile file) {
+        return new UploadResponse(storageService.uploadBrandImage(file));
+    }
+
     public record UploadResponse(String url) {}
 }

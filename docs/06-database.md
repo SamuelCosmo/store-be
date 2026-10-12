@@ -74,7 +74,9 @@ Client (tenant: restaurante, café, etc.)
 
 | Tabla         | Relación / columnas extra                                     |
 | ------------- | ------------------------------------------------------------- |
-| `clients`     | 1:N → `stores` (el cliente tiene varios establecimientos)     |
+| `clients`     | 1:N → `stores` (el cliente tiene varios establecimientos);    |
+|               | `logo_url` — marca del tenant (subida vía                     |
+|               | `POST /api/uploads/brand` → `clients/{id}/brand/` en S3)      |
 | `stores`      | FK → `clients`, `business_type` (RESTAURANT/RETAIL/BAR/CAFE)  |
 |               | — preset de módulos sugerido por giro                         |
 | `users`       | FK → `clients` (tenant); `user_stores` acota a qué            |
@@ -100,7 +102,9 @@ Client (tenant: restaurante, café, etc.)
 |               | `payment_method` (CASH/CARD), `refund_status`                 |
 |               | (NONE/REFUNDED — se marca al cancelar una orden pagada),      |
 |               | `subtotal`, `tax_rate`, `tax_amount`, `total` — snapshot del  |
-|               | cobro al momento de crearla (no recalcula con settings)       |
+|               | cobro al momento de crearla (no recalcula con settings),      |
+|               | `ticket_number` (consecutivo semanal por tienda),             |
+|               | `cash_received`/`change_given` (solo pagos en efectivo)       |
 | `order_items` | FK → `orders`, FK → `products` — snapshot por línea:          |
 |               | `unit_price` (base + size al cobrar), `quantity`, `size_id` + |
 |               | `size_name`, `extras` (jsonb: nombre+precio por línea),       |

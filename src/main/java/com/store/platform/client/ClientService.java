@@ -93,6 +93,12 @@ public class ClientService {
     @Transactional
     public ClientSettingsResponse updateSettings(Long id, ClientSettingsRequest request) {
         Client client = findOrThrow(id);
+        if (request.name() != null && !request.name().isBlank()) {
+            client.setName(request.name().trim());
+        }
+        if (request.logoUrl() != null) {
+            client.setLogoUrl(request.logoUrl().isBlank() ? null : request.logoUrl());
+        }
         if (request.currency() != null) client.setCurrency(request.currency());
         if (request.taxRate() != null) client.setTaxRate(request.taxRate());
         if (request.kioskReceiptSeconds() != null) client.setKioskReceiptSeconds(request.kioskReceiptSeconds());

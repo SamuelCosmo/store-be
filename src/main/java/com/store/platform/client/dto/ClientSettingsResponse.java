@@ -6,6 +6,8 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 public record ClientSettingsResponse(
+        String name,
+        String logoUrl,
         String currency,
         BigDecimal taxRate,
         int kioskReceiptSeconds,
@@ -20,6 +22,8 @@ public record ClientSettingsResponse(
 
     public static ClientSettingsResponse from(Client client) {
         return new ClientSettingsResponse(
+                client.getName(),
+                client.getLogoUrl(),
                 client.getCurrency() != null ? client.getCurrency() : "MXN",
                 client.getTaxRate() != null ? client.getTaxRate() : BigDecimal.ZERO,
                 client.getKioskReceiptSeconds() != null ? client.getKioskReceiptSeconds() : 10,

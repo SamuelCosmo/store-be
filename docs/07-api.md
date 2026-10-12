@@ -72,8 +72,16 @@ PUT    /api/stores/{id}/settings   # ADMIN
 - `active` default `true` al dar de alta; sin DELETE (activar/desactivar).
 - Settings por establecimiento: `{ menuName, kitchenOkMin, kitchenWarnMin,
   kitchenSound }` — `menuName` vacío → se usa el `name` del store.
-- Settings por cliente: `{ currency, taxRate, kioskReceiptSeconds,
-  sessionHours }` — `sessionHours` es `{ rol: horas }` (0 = no cerrar).
+  **`menuName` quedó legacy** (sin input en `/settings`): el nombre que se
+  muestra en pantallas y tickets es `clients.name` (Marca); el campo sigue
+  aceptándose por compatibilidad.
+- Settings por cliente: `{ name, logoUrl, currency, taxRate,
+  kioskReceiptSeconds, sessionHours }` — `sessionHours` es
+  `{ rol: horas }` (0 = no cerrar). `name`/`logoUrl` son la marca del
+  tenant: `name` vacío se ignora, `logoUrl: ""` quita el logo; la
+  imagen se sube con `POST /api/uploads/brand` (solo ADMIN, guarda en
+  `clients/{id}/brand/` del bucket). `AuthResponse` también trae
+  `clientName`/`clientLogoUrl` para pintar la marca sin otra llamada.
 - Los admins sin `storeId` en su JWT ven todo el catálogo del cliente;
   los demás roles operan solo su tienda de sesión.
 
@@ -122,7 +130,8 @@ DELETE /api/products/{id}
 ```
 
 - `sku` e `image` opcionales; `tokenCost > 0` = canjeable con fichas.
-- `image` viene de `POST /api/uploads` (multipart `file` → `{url}`) —
+- `image` viene de `POST /api/uploads` (multipart `file` → `{url}`;
+  el logo del tenant usa `POST /api/uploads/brand`) —
   bucket S3-compatible (`adobe/s3mock` en compose para dev; env
   `STORAGE_*` apuntan al bucket real en producción).
 - `sizes`/`extras` se resuelven en la response; asignación también desde el
@@ -251,15 +260,22 @@ PATCH  /api/orders/{id}/status
   en POS/KDS/`/orders` y se imprime en el ticket; órdenes anteriores al
   campo devuelven el `id` como fallback.
 
-**Pendiente en órdenes:**
+**Efectivo:**
 
-- TODO: `cashReceived`/`changeGiven` para pago en efectivo (doc viejo lo
-  mencionaba; no implementado).
+- `OrderRequest.cashReceived` (solo CASH, `@PositiveOrZero`) — el server
+  valida que alcance el total y calcula `changeGiven = cashReceived -
+  total`. Ambos se persisten en `orders` y vuelven en
+  `OrderResponse`/`TicketResponse` (el ticket impreso muestra
+  Recibido/Cambio); en CARD quedan `null`.
 - `GET /api/orders/{id}/ticket` → `TicketResponse` — los mismos campos de
   `OrderResponse` (incl. `ticketNumber`) más `storeName` (`menuName` del
   store si existe, si no
   `name`) y `storeAddress`. Mismo scoping por store de sesión; abierto a
   CUSTOMER para que el kiosco pueda imprimir su ticket.
+- **Branding en órdenes**: `OrderResponse`/`TicketResponse` traen
+  `clientName` (`clients.name`) y `logoUrl` (`clients.logo_url`) — el
+  encabezado del recibo/ticket muestra la marca del negocio y el front
+  cae a `storeName` si falta.
 
 ## Tokens (fichas para bebidas) *(pendiente de implementar)*
 

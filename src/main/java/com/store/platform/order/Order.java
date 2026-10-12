@@ -68,6 +68,12 @@ public class Order {
      *  transacción (lock pesimista sobre el store). Nullable: órdenes viejas. */
     private Integer ticketNumber;
 
+    /** Efectivo entregado por el cliente — solo pagos CASH. */
+    private BigDecimal cashReceived;
+
+    /** Cambio devuelto = cashReceived - total — solo pagos CASH. */
+    private BigDecimal changeGiven;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();

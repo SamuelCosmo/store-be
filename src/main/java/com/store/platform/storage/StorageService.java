@@ -43,8 +43,25 @@ public class StorageService {
         this.publicUrl = publicUrl;
     }
 
-    /** Guarda la imagen bajo {@code products/{uuid}} y devuelve su URL pública. */
+    /** Imagen de producto: {@code clients/{c}/stores/{s}/products/{uuid}}. */
     public String uploadProductImage(MultipartFile file) {
+        AuthUser auth = AuthContext.current();
+        // admin sin tienda activa → stores/shared
+        Long storeId = auth.storeId();
+        String prefix = "clients/" + auth.clientId()
+                + "/stores/" + (storeId == null ? "shared" : storeId)
+                + "/products";
+        return upload(file, prefix);
+    }
+
+    /** Logo del tenant: {@code clients/{c}/brand/{uuid}} — a nivel cliente. */
+    public String uploadBrandImage(MultipartFile file) {
+        String prefix = "clients/" + AuthContext.current().clientId() + "/brand";
+        return upload(file, prefix);
+    }
+
+    /** Valida tipo/tamaño, sube como `{prefix}/{uuid}.{ext}` y devuelve su URL pública. */
+    private String upload(MultipartFile file, String prefix) {
         if (file == null || file.isEmpty()) {
             throw new BusinessException("Empty file");
         }
@@ -55,13 +72,7 @@ public class StorageService {
         if (file.getSize() > MAX_BYTES) {
             throw new BusinessException("Image too large (max 5 MB)");
         }
-        // carpeta por tenant: clients/{id}/stores/{id}/products/{uuid}
-        // (admin sin tienda activa → stores/shared)
-        AuthUser auth = AuthContext.current();
-        Long storeId = auth.storeId();
-        String key = "clients/" + auth.clientId()
-                + "/stores/" + (storeId == null ? "shared" : storeId)
-                + "/products/" + UUID.randomUUID() + "." + ext;
+        String key = prefix + "/" + UUID.randomUUID() + "." + ext;
         try (var in = file.getInputStream()) {
             ensureBucket();
             client.putObject(PutObjectArgs.builder()
