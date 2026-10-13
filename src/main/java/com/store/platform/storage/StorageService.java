@@ -4,9 +4,11 @@ import com.store.platform.common.exception.BusinessException;
 import com.store.platform.security.AuthContext;
 import com.store.platform.security.AuthUser;
 import io.minio.BucketExistsArgs;
+import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.http.Method;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -85,6 +87,19 @@ public class StorageService {
             throw new BusinessException("Could not upload image: " + e.getMessage());
         }
         return publicUrl + "/" + key;
+    }
+
+    /** URL firmada temporal para leer un objeto — los buckets de Railway son privados. */
+    public String presignedUrl(String key) {
+        try {
+            return client.getPresignedObjectUrl(GetPresignedObjectUrlArgs.builder()
+                    .method(Method.GET)
+                    .bucket(bucket)
+                    .object(key)
+                    .build());
+        } catch (Exception e) {
+            throw new BusinessException("Could not sign url: " + e.getMessage());
+        }
     }
 
     /** Crea el bucket si no existe (s3mock ya lo crea vía initialBuckets). */
