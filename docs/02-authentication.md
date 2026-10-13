@@ -96,5 +96,6 @@ device registration y token propio.
 
 ```text
 POST   /api/auth/register
-POST   /api/auth/login
+POST   /api/auth/login          # tenants — rechaza SUPERADMIN
+POST   /api/auth/superadmin     # solo cuentas de plataforma
 ```

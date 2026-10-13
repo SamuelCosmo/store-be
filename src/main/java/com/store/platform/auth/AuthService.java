@@ -60,25 +60,37 @@ public class AuthService {
 
     @Transactional(readOnly = true)
     public AuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmailIgnoreCase(request.email().trim())
+        User user = authenticate(request);
+        // La cuenta de plataforma no entra por el login de tenants — mismo
+        // error genérico para no filtrar qué correo es superadmin
+        if (user.getRole() == User.Role.SUPERADMIN) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
+        return toResponse(user, resolveStore(user, request.storeId()));
+    }
+
+    /** Solo cuentas de plataforma — el front lo usa en /superadmin. */
+    @Transactional(readOnly = true)
+    public AuthResponse loginSuperadmin(LoginRequest request) {
+        User user = authenticate(request);
+        if (user.getRole() != User.Role.SUPERADMIN) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
+        return toResponse(user, null);
+    }
+
+    private User authenticate(LoginRequest request) {
+        return userRepository.findByEmailIgnoreCase(request.email().trim())
                 .filter(User::isActive)
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
-        // SUPERADMIN: cuenta de plataforma — sin tienda ni tenant
-        Long storeId = user.getRole() == User.Role.SUPERADMIN
-                ? null
-                : resolveStore(user, request.storeId());
-        return toResponse(user, storeId);
     }
 
     /** Tiendas elegibles de la cuenta — el front las pide cuando login
      *  responde "storeId required" para mostrar el selector. */
     @Transactional(readOnly = true)
     public List<StoreOption> storesForLogin(LoginRequest request) {
-        User user = userRepository.findByEmailIgnoreCase(request.email().trim())
-                .filter(User::isActive)
-                .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
-                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+        User user = authenticate(request);
         return user.getStores().stream()
                 .map(s -> new StoreOption(s.getId(), s.getName()))
                 .toList();

@@ -32,6 +32,12 @@ public class AuthController {
         return authService.login(request);
     }
 
+    /** Login de plataforma — rechaza roles de tenant; lo usa /superadmin. */
+    @PostMapping("/superadmin")
+    public AuthResponse superadminLogin(@Valid @RequestBody LoginRequest request) {
+        return authService.loginSuperadmin(request);
+    }
+
     /** Tiendas elegibles de la cuenta — se consulta tras el error
      *  "storeId required" para que el login muestre el selector. */
     @PostMapping("/stores")

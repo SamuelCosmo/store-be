@@ -29,6 +29,9 @@ Los `GET` de lista aceptan los params estándar de Spring `Pageable`:
 ```text
 POST   /api/auth/register       # solo crea el PRIMER usuario (ADMIN) del tenant
 POST   /api/auth/login          # { email, password, storeId } → { token, role, ... }
+                                # rechaza SUPERADMIN (usa su endpoint propio)
+POST   /api/auth/superadmin     # { email, password } → AuthResponse — SOLO
+                                # cuentas de plataforma; lo consume /superadmin
 POST   /api/auth/stores         # { email, password } → [{id, name}] — tiendas
                                 # elegibles cuando login responde "storeId
                                 # required" (roles operativos con varias
