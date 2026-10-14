@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 @Entity
 @Table(name = "sizes")
@@ -36,4 +37,7 @@ public class Size {
 
     /** Menu order across the catalog (null = goes last). */
     private Integer position;
+
+    /** Soft delete: row stays for order history; hidden from all listings. */
+    private Instant deletedAt;
 }

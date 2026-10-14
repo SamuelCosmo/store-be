@@ -10,6 +10,7 @@ import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.DuplicateResourceException;
 import com.store.platform.common.exception.ResourceNotFoundException;
 import com.store.platform.security.AuthContext;
+import com.store.platform.storage.StorageService;
 import com.store.platform.user.User;
 import com.store.platform.user.UserRepository;
 import com.store.platform.user.UserService;
@@ -28,6 +29,7 @@ public class ClientService {
 
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
+    private final StorageService storageService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Transactional
@@ -52,7 +54,7 @@ public class ClientService {
             throw new BusinessException("adminPassword required to create the client's admin");
         }
         String email = UserService.normalizeEmail(request.adminEmail());
-        if (userRepository.existsByEmailIgnoreCase(email)) {
+        if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
             throw new DuplicateResourceException("Email already registered: " + email);
         }
         userRepository.save(User.builder()
@@ -97,7 +99,11 @@ public class ClientService {
             client.setName(request.name().trim());
         }
         if (request.logoUrl() != null) {
-            client.setLogoUrl(request.logoUrl().isBlank() ? null : request.logoUrl());
+            String old = client.getLogoUrl();
+            String next = request.logoUrl().isBlank() ? null : request.logoUrl();
+            client.setLogoUrl(next);
+            // el logo reemplazado/quitrado queda huérfano en el bucket
+            if (old != null && !old.equals(next)) storageService.deleteByUrl(old);
         }
         if (request.currency() != null) client.setCurrency(request.currency());
         if (request.taxRate() != null) client.setTaxRate(request.taxRate());
@@ -122,7 +128,7 @@ public class ClientService {
         }
         User admin = adminOf(id);
         String email = UserService.normalizeEmail(request.adminEmail());
-        if (userRepository.existsByEmailIgnoreCaseAndIdNot(email, admin.getId())) {
+        if (userRepository.existsByEmailIgnoreCaseAndIdNotAndDeletedAtIsNull(email, admin.getId())) {
             throw new DuplicateResourceException("Email already registered: " + email);
         }
         admin.setName(request.adminName().trim());
@@ -136,7 +142,7 @@ public class ClientService {
     /** El admin "principal" del tenant (el primero creado). */
     private User adminOf(Long clientId) {
         return userRepository
-                .findFirstByClientIdAndRoleOrderByIdAsc(clientId, User.Role.ADMIN)
+                .findFirstByClientIdAndRoleAndDeletedAtIsNullOrderByIdAsc(clientId, User.Role.ADMIN)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Client has no admin user: " + clientId));
     }

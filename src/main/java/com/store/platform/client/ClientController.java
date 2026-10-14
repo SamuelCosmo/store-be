@@ -28,8 +28,9 @@ public class ClientController {
     private final ClientService clientService;
     private final StoreService storeService;
 
-    // ponytail: open endpoint for dev onboarding; becomes platform-admin only when that role exists
+    /** Plataforma (superadmin): alta de tenant — con admin opcional en el request. */
     @PostMapping
+    @PreAuthorize("hasRole('SUPERADMIN')")
     public ResponseEntity<ClientResponse> create(@Valid @RequestBody ClientRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(clientService.create(request));
     }

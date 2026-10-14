@@ -20,6 +20,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,14 +34,14 @@ public class CategoryService {
     private final StoreService storeService;
 
     private CategoryResponse toResponse(Category c) {
-        return CategoryResponse.from(c, productRepository.countByCategoryId(c.getId()));
+        return CategoryResponse.from(c, productRepository.countByCategoryIdAndDeletedAtIsNull(c.getId()));
     }
 
     @Transactional
     public CategoryResponse create(CategoryRequest request) {
         AuthUser auth = AuthContext.current();
         Set<Store> stores = resolveStores(request.storeIds(), auth);
-        if (categoryRepository.existsByStores_Client_IdAndNameIgnoreCase(auth.clientId(), request.name())) {
+        if (categoryRepository.existsByStores_Client_IdAndNameIgnoreCaseAndDeletedAtIsNull(auth.clientId(), request.name())) {
             throw new DuplicateResourceException("Category already exists: " + request.name());
         }
         Category category = Category.builder()
@@ -58,17 +59,17 @@ public class CategoryService {
         AuthUser auth = AuthContext.current();
         if (storeId != null) {
             Long scope = storeService.resolveScope(storeId);
-            return categoryRepository.findDistinctByStores_IdOrderByName(scope).stream()
+            return categoryRepository.findDistinctByStores_IdAndDeletedAtIsNullOrderByName(scope).stream()
                     .map(this::toResponse)
                     .toList();
         }
         if (auth.storeId() != null) {
-            return categoryRepository.findDistinctByStores_IdOrderByName(auth.storeId()).stream()
+            return categoryRepository.findDistinctByStores_IdAndDeletedAtIsNullOrderByName(auth.storeId()).stream()
                     .map(this::toResponse)
                     .toList();
         }
         // Admin without an active store sees the whole client catalog
-        return categoryRepository.findDistinctByStores_Client_IdOrderByName(auth.clientId()).stream()
+        return categoryRepository.findDistinctByStores_Client_IdAndDeletedAtIsNullOrderByName(auth.clientId()).stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -107,7 +108,7 @@ public class CategoryService {
     public CategoryResponse update(Long id, CategoryRequest request) {
         AuthUser auth = AuthContext.current();
         Category category = findScopedOrThrow(id);
-        if (categoryRepository.existsByStores_Client_IdAndNameIgnoreCaseAndIdNot(auth.clientId(), request.name(), id)) {
+        if (categoryRepository.existsByStores_Client_IdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(auth.clientId(), request.name(), id)) {
             throw new DuplicateResourceException("Category already exists: " + request.name());
         }
         category.setName(request.name());
@@ -123,18 +124,20 @@ public class CategoryService {
     @Transactional
     public void delete(Long id) {
         Category category = findScopedOrThrow(id);
-        long linked = productRepository.countByCategoryId(category.getId());
+        long linked = productRepository.countByCategoryIdAndDeletedAtIsNull(category.getId());
         if (linked > 0) {
             throw new BusinessException("La categoría tiene " + linked
                     + " producto(s) enlazado(s) — desvincúlalos antes de eliminarla");
         }
-        categoryRepository.delete(category);
+        category.setDeletedAt(Instant.now());
+        categoryRepository.save(category);
     }
 
     /** Category must be assigned to a store the caller may operate. */
     @Transactional(readOnly = true)
     public Category findScopedOrThrow(Long id) {
         Category category = categoryRepository.findById(id)
+                .filter(c -> c.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
         AuthUser auth = AuthContext.current();
         boolean visible = auth.role() == User.Role.ADMIN

@@ -53,6 +53,9 @@ public class User {
     @Builder.Default
     private boolean active = true;
 
+    /** Soft delete: row stays for order history; hidden from all listings. */
+    private Instant deletedAt;
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

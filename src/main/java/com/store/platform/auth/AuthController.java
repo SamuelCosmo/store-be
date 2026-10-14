@@ -4,10 +4,13 @@ import com.store.platform.auth.dto.AuthResponse;
 import com.store.platform.auth.dto.LoginRequest;
 import com.store.platform.auth.dto.RegisterRequest;
 import com.store.platform.auth.dto.StoreOption;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -21,21 +24,37 @@ import java.util.List;
 public class AuthController {
 
     private final AuthService authService;
+    private final AuthCookie authCookie;
 
+    /** Solo plataforma — crea el primer ADMIN de un tenant que nació sin admin. */
     @PostMapping("/register")
+    @PreAuthorize("hasRole('SUPERADMIN')")
     public ResponseEntity<AuthResponse> register(@Valid @RequestBody RegisterRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request);
+    public AuthResponse login(@Valid @RequestBody LoginRequest request,
+                              HttpServletResponse response) {
+        AuthResponse auth = authService.login(request);
+        response.addHeader(HttpHeaders.SET_COOKIE, authCookie.forToken(auth.token()).toString());
+        return auth;
     }
 
     /** Login de plataforma — rechaza roles de tenant; lo usa /superadmin. */
     @PostMapping("/superadmin")
-    public AuthResponse superadminLogin(@Valid @RequestBody LoginRequest request) {
-        return authService.loginSuperadmin(request);
+    public AuthResponse superadminLogin(@Valid @RequestBody LoginRequest request,
+                                        HttpServletResponse response) {
+        AuthResponse auth = authService.loginSuperadmin(request);
+        response.addHeader(HttpHeaders.SET_COOKIE, authCookie.forToken(auth.token()).toString());
+        return auth;
+    }
+
+    /** Expira la cookie — httpOnly no la puede tocar el JS del front. */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletResponse response) {
+        response.addHeader(HttpHeaders.SET_COOKIE, authCookie.clear().toString());
+        return ResponseEntity.noContent().build();
     }
 
     /** Tiendas elegibles de la cuenta — se consulta tras el error

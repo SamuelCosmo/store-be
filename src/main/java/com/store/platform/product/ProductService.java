@@ -11,6 +11,7 @@ import com.store.platform.product.dto.ProductRequest;
 import com.store.platform.product.dto.ProductResponse;
 import com.store.platform.security.AuthContext;
 import com.store.platform.security.AuthUser;
+import com.store.platform.storage.StorageService;
 import com.store.platform.store.StoreService;
 import com.store.platform.user.User;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -32,6 +34,7 @@ public class ProductService {
     private final StoreService storeService;
     private final ExtraService extraService;
     private final SizeService sizeService;
+    private final StorageService storageService;
 
     @Transactional
     public ProductResponse create(ProductRequest request) {
@@ -60,13 +63,13 @@ public class ProductService {
         if (categoryId != null) {
             categoryService.findScopedOrThrow(categoryId);
             return map(onlyActive
-                    ? productRepository.findByCategoryIdAndActiveTrue(categoryId)
-                    : productRepository.findByCategoryId(categoryId));
+                    ? productRepository.findByCategoryIdAndActiveTrueAndDeletedAtIsNull(categoryId)
+                    : productRepository.findByCategoryIdAndDeletedAtIsNull(categoryId));
         }
         if (storeId == null && auth.storeId() == null && auth.role() == User.Role.ADMIN) {
             return map(onlyActive
-                    ? productRepository.findDistinctByCategory_Stores_Client_IdAndActiveTrue(auth.clientId())
-                    : productRepository.findDistinctByCategory_Stores_Client_Id(auth.clientId()));
+                    ? productRepository.findDistinctByCategory_Stores_Client_IdAndActiveTrueAndDeletedAtIsNull(auth.clientId())
+                    : productRepository.findDistinctByCategory_Stores_Client_IdAndDeletedAtIsNull(auth.clientId()));
         }
         Long scope = storeService.resolveScope(storeId);
         return map(onlyActive
@@ -107,6 +110,7 @@ public class ProductService {
         product.setName(request.name());
         product.setDescription(request.description());
         product.setSku(request.sku());
+        String oldImage = product.getImage();
         product.setImage(request.image());
         product.setPrice(request.price());
         product.setTokenCost(request.tokenCost() == null ? 0 : request.tokenCost());
@@ -116,7 +120,12 @@ public class ProductService {
         if (request.sizeIds() != null) {
             product.setSizes(resolveSizes(request.sizeIds()));
         }
-        return ProductResponse.from(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        // la imagen reemplazada queda huérfana en el bucket
+        if (oldImage != null && !oldImage.equals(saved.getImage())) {
+            storageService.deleteByUrl(oldImage);
+        }
+        return ProductResponse.from(saved);
     }
 
     @Transactional
@@ -135,7 +144,10 @@ public class ProductService {
 
     @Transactional
     public void delete(Long id) {
-        productRepository.delete(findScopedOrThrow(id));
+        // la imagen se conserva: la fila sigue apuntando a ella para historial/restore
+        Product product = findScopedOrThrow(id);
+        product.setDeletedAt(Instant.now());
+        productRepository.save(product);
     }
 
     private Set<Extra> resolveExtras(List<Long> extraIds) {
@@ -156,6 +168,7 @@ public class ProductService {
     @Transactional(readOnly = true)
     public Product findScopedOrThrow(Long id) {
         Product product = productRepository.findById(id)
+                .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + id));
         storeService.resolveScope(product.getCategory().getStores().stream()
                 .map(com.store.platform.store.Store::getId)

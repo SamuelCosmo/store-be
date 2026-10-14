@@ -104,7 +104,9 @@ Client (tenant: restaurante, café, etc.)
 |               | `subtotal`, `tax_rate`, `tax_amount`, `total` — snapshot del  |
 |               | cobro al momento de crearla (no recalcula con settings),      |
 |               | `ticket_number` (consecutivo semanal por tienda),             |
-|               | `cash_received`/`change_given` (solo pagos en efectivo)       |
+|               | `cash_received`/`change_given` (solo pagos en efectivo),      |
+|               | `preparing_at`/`ready_at`/`completed_at` — timestamps de      |
+|               | ciclo de vida que alimentan el dashboard de tiempos           |
 | `order_items` | FK → `orders`, FK → `products` — snapshot por línea:          |
 |               | `unit_price` (base + size al cobrar), `quantity`, `size_id` + |
 |               | `size_name`, `extras` (jsonb: nombre+precio por línea),       |
@@ -129,3 +131,24 @@ Client (tenant: restaurante, café, etc.)
   pertenece a un `client_id`.
 - Un usuario solo opera sobre establecimientos de su cliente (`client_id` en
   `users`) y, salvo ADMIN, solo sobre los listados en `user_stores`.
+
+## Borrado lógico (`deleted_at`)
+
+`stores`, `users`, `categories`, `products`, `extras` y `sizes` tienen
+`deleted_at` (timestamp nullable): los `DELETE` marcan la fila en vez de
+borrarla, para que el historial (órdenes → producto/usuario, snapshots de
+ticket) sobreviva.
+
+- Todas las queries de listado filtran `deletedAt is null` (repositories);
+  los lookups por id del service-layer rechazan borrados con 404.
+- Extra/tamaño borrado se desvincula de sus productos (join table limpia —
+  el snapshot de la orden ya guardó nombre+precio).
+- `users.email` sigue siendo UNIQUE → al borrar un usuario su email se
+  reescribe a `…​.deleted-{id}` para liberar el correo.
+- Órdenes con productos/tiendas/usuarios borrados se siguen leyendo
+  (`order_items` es snapshot; `findById` no filtra `deleted_at` — solo lo
+  hacen las listas y los guards del service).
+- Login bloqueado para usuarios borrados (`findByEmail…​AndDeletedAtIsNull`);
+  su JWT vigente sigue válido hasta `exp` (el filtro no consulta la DB —
+  mismo alcance que `active=false`).
+- No hay endpoint de restore ni purge — la fila queda solo para historial.

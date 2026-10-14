@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -34,7 +35,7 @@ public class SizeService {
                 .name(request.name())
                 .price(request.price())
                 .active(request.active() == null || request.active())
-                .position((int) sizeRepository.countByClientId(clientId))
+                .position((int) sizeRepository.countByClientIdAndDeletedAtIsNull(clientId))
                 .build();
         size = sizeRepository.save(size);
         syncProducts(size, request.productIds(), clientId);
@@ -43,7 +44,7 @@ public class SizeService {
 
     @Transactional(readOnly = true)
     public List<SizeResponse> list() {
-        return sizeRepository.findByClientIdOrderByPositionAscNameAsc(AuthContext.current().clientId()).stream()
+        return sizeRepository.findByClientIdAndDeletedAtIsNullOrderByPositionAscNameAsc(AuthContext.current().clientId()).stream()
                 .map(s -> SizeResponse.from(s, productIds(s.getId())))
                 .toList();
     }
@@ -72,15 +73,17 @@ public class SizeService {
     @Transactional
     public void delete(Long id) {
         Size size = findOwnedOrThrow(id);
-        productRepository.findDistinctBySizes_Id(id)
+        productRepository.findDistinctBySizes_IdAndDeletedAtIsNull(id)
                 .forEach(p -> p.getSizes().remove(size));
-        sizeRepository.delete(size);
+        size.setDeletedAt(Instant.now());
+        sizeRepository.save(size);
     }
 
     /** Size must belong to the caller's client — foreign sizes are invisible. */
     @Transactional(readOnly = true)
     public Size findOwnedOrThrow(Long id) {
         Size size = sizeRepository.findById(id)
+                .filter(s -> s.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Size not found: " + id));
         if (!size.getClient().getId().equals(AuthContext.current().clientId())) {
             throw new ResourceNotFoundException("Size not found: " + id);
@@ -94,7 +97,7 @@ public class SizeService {
         Set<Product> wanted = productIds.stream()
                 .map(pid -> resolveProduct(pid, clientId))
                 .collect(Collectors.toSet());
-        for (Product p : productRepository.findDistinctBySizes_Id(size.getId())) {
+        for (Product p : productRepository.findDistinctBySizes_IdAndDeletedAtIsNull(size.getId())) {
             if (!wanted.contains(p)) p.getSizes().remove(size);
         }
         for (Product p : wanted) p.getSizes().add(size);
@@ -102,6 +105,7 @@ public class SizeService {
 
     private Product resolveProduct(Long id, Long clientId) {
         Product product = productRepository.findById(id)
+                .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + id));
         boolean owned = product.getCategory().getStores().stream()
                 .anyMatch(s -> s.getClient().getId().equals(clientId));
@@ -110,7 +114,7 @@ public class SizeService {
     }
 
     private List<Long> productIds(Long sizeId) {
-        return productRepository.findDistinctBySizes_Id(sizeId).stream()
+        return productRepository.findDistinctBySizes_IdAndDeletedAtIsNull(sizeId).stream()
                 .map(Product::getId)
                 .toList();
     }

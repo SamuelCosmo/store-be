@@ -36,11 +36,14 @@ public record ProductResponse(
                 product.isActive(),
                 product.isSoldOut(),
                 product.getTokenCost(),
-                // extras alfabéticos; tamaños en el orden global del catálogo
+                // extras alfabéticos; tamaños en el orden global del catálogo.
+                // los borrados lógicos quedan fuera del menú aunque el join siga existiendo
                 product.getExtras().stream()
+                        .filter(e -> e.getDeletedAt() == null)
                         .sorted(Comparator.comparing(Extra::getName, String.CASE_INSENSITIVE_ORDER))
                         .map(ExtraResponse::from).toList(),
                 product.getSizes().stream()
+                        .filter(s -> s.getDeletedAt() == null)
                         .sorted(Comparator
                                 .comparing((Size s) -> s.getPosition() == null ? Integer.MAX_VALUE : s.getPosition())
                                 .thenComparing(Size::getName))

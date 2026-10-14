@@ -4,6 +4,7 @@ import com.store.platform.store.Store;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -38,4 +39,7 @@ public class Category {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** Soft delete: row stays for order history; hidden from all listings. */
+    private Instant deletedAt;
 }

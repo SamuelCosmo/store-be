@@ -1,8 +1,11 @@
 package com.store.platform.auth.dto;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.store.platform.user.User;
 
 public record AuthResponse(
+        /** El JWT viaja solo en la cookie httpOnly — nunca en el body. */
+        @JsonIgnore
         String token,
         Long userId,
         String name,

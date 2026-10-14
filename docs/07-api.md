@@ -27,11 +27,16 @@ Los `GET` de lista aceptan los params estándar de Spring `Pageable`:
 ## Authentication ✅
 
 ```text
-POST   /api/auth/register       # solo crea el PRIMER usuario (ADMIN) del tenant
-POST   /api/auth/login          # { email, password, storeId } → { token, role, ... }
-                                # rechaza SUPERADMIN (usa su endpoint propio)
+POST   /api/auth/register       # SUPERADMIN — crea el PRIMER usuario (ADMIN)
+                                # de un tenant que nació sin admin
+POST   /api/auth/login          # { email, password, storeId } → AuthResponse
+                                # sin `token` — el JWT llega en la cookie
+                                # httpOnly `store_token`. Rechaza SUPERADMIN
+                                # (usa su endpoint propio)
 POST   /api/auth/superadmin     # { email, password } → AuthResponse — SOLO
                                 # cuentas de plataforma; lo consume /superadmin
+POST   /api/auth/logout         # expira la cookie (público — sesión expirada
+                                # también debe poder limpiarla)
 POST   /api/auth/stores         # { email, password } → [{id, name}] — tiendas
                                 # elegibles cuando login responde "storeId
                                 # required" (roles operativos con varias
@@ -39,10 +44,15 @@ POST   /api/auth/stores         # { email, password } → [{id, name}] — tiend
                                 # client-wide y filtra tiendas por página)
 ```
 
+Todas las requests autenticadas viajan con `credentials: include`
+(cookie `store_token`); `Authorization: Bearer` sigue aceptándose para
+clientes no-browser. Mutaciones autenticadas por cookie exigen `Origin`
+en la allowlist de CORS (ver `02-authentication.md`).
+
 ## Clients (tenants) ✅
 
 ```text
-POST   /api/clients             # abierto en dev (onboarding); SUPERADMIN también lo usa
+POST   /api/clients             # SUPERADMIN — alta de tenant
                                 # + { adminName, adminEmail, adminPassword }
                                 # opcionales → crea el ADMIN del tenant en el
                                 # mismo commit

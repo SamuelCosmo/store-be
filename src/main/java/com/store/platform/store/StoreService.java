@@ -34,7 +34,7 @@ public class StoreService {
     public StoreResponse create(Long clientId, StoreRequest request) {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found: " + clientId));
-        if (storeRepository.countByClientId(clientId) >= client.getMaxStores()) {
+        if (storeRepository.countByClientIdAndDeletedAtIsNull(clientId) >= client.getMaxStores()) {
             throw new BusinessException("Store limit reached for this plan (" + client.getMaxStores() + ")");
         }
         Store store = Store.builder()
@@ -53,7 +53,7 @@ public class StoreService {
     }
 
     public List<StoreResponse> listByClient(Long clientId) {
-        return storeRepository.findByClientId(clientId).stream()
+        return storeRepository.findByClientIdAndDeletedAtIsNull(clientId).stream()
                 .map(StoreResponse::from)
                 .toList();
     }
@@ -121,6 +121,7 @@ public class StoreService {
 
     public Store findOrThrow(Long id) {
         return storeRepository.findById(id)
+                .filter(s -> s.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Store not found: " + id));
     }
 

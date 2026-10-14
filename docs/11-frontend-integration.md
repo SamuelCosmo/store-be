@@ -13,8 +13,8 @@ Guía para el repositorio del frontend (React + Next.js) que consumirá esta API
   - `axios` — interceptores cómodos para adjuntar el JWT
   - `TanStack Query` / `SWR` — recomendado para cache, loading/error states
     (ideal para el KDS que hace polling de órdenes)
-- Route Handlers de Next.js (`app/api/...`) — opcional, solo si se quiere
-  proxy/BFF para ocultar el token en cookies httpOnly
+- Route Handlers de Next.js (`app/api/...`) — no hacen falta: el JWT ya
+  viaja en cookie httpOnly `store_token` directo del backend
 
 ## Base URL
 
@@ -25,15 +25,19 @@ NEXT_PUBLIC_API_URL=http://localhost:8080
 ## Autenticación (JWT)
 
 ```text
-POST /api/auth/login
-  → { "token": "...", "role": "ADMIN" | ... }
+POST /api/auth/login   (fetch con credentials: "include")
+  → AuthResponse SIN token — el JWT llega en Set-Cookie: store_token=<jwt>
+    (httpOnly, Max-Age = expiración del JWT)
 
 Siguientes requests:
-  Authorization: Bearer <token>
+  credentials: "include"   (la cookie viaja sola; Bearer también aceptado)
+
+Logout:
+  POST /api/auth/logout → expira la cookie (JS no puede borrar httpOnly)
 ```
 
-- Guardar el token en `localStorage` (MVP) o en cookie httpOnly via Route
-  Handler (más seguro, siguiente iteración).
+- El front guarda solo metadata de sesión (userId, role, storeId, loginAt)
+  en localStorage — el token no es legible desde JS.
 - Tras login, **enrutar por rol** a su módulo — matriz en
   [02-authentication](02-authentication.md#acceso-a-módulos-por-rol).
 

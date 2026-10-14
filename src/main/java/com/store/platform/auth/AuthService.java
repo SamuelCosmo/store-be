@@ -40,11 +40,11 @@ public class AuthService {
     public AuthResponse register(RegisterRequest request) {
         Client client = clientRepository.findById(request.clientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found: " + request.clientId()));
-        if (userRepository.existsByClientId(client.getId())) {
+        if (userRepository.existsByClientIdAndDeletedAtIsNull(client.getId())) {
             throw new BusinessException("Client already has users — ask your ADMIN to create your account");
         }
         String email = UserService.normalizeEmail(request.email());
-        if (userRepository.existsByEmailIgnoreCase(email)) {
+        if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
             throw new DuplicateResourceException("Email already registered: " + email);
         }
         User user = User.builder()
@@ -80,7 +80,7 @@ public class AuthService {
     }
 
     private User authenticate(LoginRequest request) {
-        return userRepository.findByEmailIgnoreCase(request.email().trim())
+        return userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(request.email().trim())
                 .filter(User::isActive)
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
                 .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
@@ -92,31 +92,34 @@ public class AuthService {
     public List<StoreOption> storesForLogin(LoginRequest request) {
         User user = authenticate(request);
         return user.getStores().stream()
+                .filter(s -> s.getDeletedAt() == null)
                 .map(s -> new StoreOption(s.getId(), s.getName()))
                 .toList();
     }
 
     private Long resolveStore(User user, Long requestedStoreId) {
         if (requestedStoreId == null) {
+            var liveStores = user.getStores().stream()
+                    .filter(s -> s.getDeletedAt() == null).toList();
             // ADMIN opera todo el cliente desde el panel — no elige tienda en
             // el login; con 1 asignada se resuelve sola como siempre
             if (user.getRole() == User.Role.ADMIN) {
-                return user.getStores().size() == 1
-                        ? user.getStores().iterator().next().getId()
-                        : null;
+                return liveStores.size() == 1 ? liveStores.get(0).getId() : null;
             }
-            if (user.getStores().size() == 1) {
-                return user.getStores().iterator().next().getId();
+            if (liveStores.size() == 1) {
+                return liveStores.get(0).getId();
             }
             throw new BusinessException("storeId required — your account operates multiple stores");
         }
         Store store = storeRepository.findById(requestedStoreId)
+                .filter(s -> s.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Store not found: " + requestedStoreId));
         if (!store.getClient().getId().equals(user.getClient().getId())) {
             throw new AccessDeniedException("Store does not belong to your client");
         }
         boolean assigned = user.getRole() == User.Role.ADMIN
-                || user.getStores().stream().anyMatch(s -> s.getId().equals(requestedStoreId));
+                || user.getStores().stream()
+                        .anyMatch(s -> s.getId().equals(requestedStoreId) && s.getDeletedAt() == null);
         if (!assigned) {
             throw new AccessDeniedException("You are not assigned to this store");
         }

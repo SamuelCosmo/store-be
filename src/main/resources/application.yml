@@ -25,6 +25,12 @@ app:
     # ponytail: dev default, override with JWT_SECRET in real environments
     secret: ${JWT_SECRET:dev-only-secret-key-change-me-in-production-0123456789abcdef}
     expiration-ms: ${JWT_EXPIRATION_MS:604800000}
+  cookie:
+    # El JWT viaja en cookie httpOnly. En prod: COOKIE_SECURE=true y
+    # COOKIE_SAMESITE=None — *.up.railway.app son sitios distintos
+    # (public suffix) y SameSite=Lax no enviaría la cookie.
+    secure: ${COOKIE_SECURE:false}
+    same-site: ${COOKIE_SAMESITE:Lax}
   storage:
     # Bucket local (adobe/s3mock en docker-compose). En producción apuntar
     # las env STORAGE_* al bucket real.

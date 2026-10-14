@@ -102,7 +102,7 @@ public class OrderService {
             if (product.getCategory().getStores().stream().noneMatch(s -> s.getId().equals(storeId))) {
                 throw new BusinessException("Product does not belong to this store: " + product.getName());
             }
-            if (!product.isActive() || product.isSoldOut()) {
+            if (!product.isActive() || product.isSoldOut() || product.getDeletedAt() != null) {
                 throw new BusinessException("Product is not available: " + product.getName());
             }
 
@@ -110,7 +110,7 @@ public class OrderService {
             String sizeName = null;
             if (item.sizeId() != null) {
                 var size = product.getSizes().stream()
-                        .filter(s -> s.getId().equals(item.sizeId()))
+                        .filter(s -> s.getId().equals(item.sizeId()) && s.getDeletedAt() == null)
                         .findFirst()
                         .orElseThrow(() -> new BusinessException(
                                 "Size not available for product: " + product.getName()));
@@ -122,7 +122,7 @@ public class OrderService {
             if (item.extras() != null) {
                 for (OrderItemExtraRequest e : item.extras()) {
                     var extra = product.getExtras().stream()
-                            .filter(x -> x.getId().equals(e.extraId()))
+                            .filter(x -> x.getId().equals(e.extraId()) && x.getDeletedAt() == null)
                             .findFirst()
                             .orElseThrow(() -> new BusinessException(
                                     "Extra not available for product: " + product.getName()));
@@ -241,6 +241,11 @@ public class OrderService {
             order.setRefundStatus(Order.RefundStatus.REFUNDED);
             order.getItems().forEach(item ->
                     inventoryService.increase(item.getProduct(), item.getQuantity()));
+        }
+        if (target == Order.Status.READY) {
+            order.setReadyAt(java.time.Instant.now());
+        } else if (target == Order.Status.COMPLETED) {
+            order.setCompletedAt(java.time.Instant.now());
         }
         order.setStatus(target);
         return OrderResponse.from(orderRepository.save(order));

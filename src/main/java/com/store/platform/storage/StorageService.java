@@ -8,7 +8,10 @@ import io.minio.GetPresignedObjectUrlArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.RemoveObjectArgs;
 import io.minio.http.Method;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +29,8 @@ public class StorageService {
             "image/png", "png",
             "image/webp", "webp",
             "image/gif", "gif");
+
+    private static final Logger log = LoggerFactory.getLogger(StorageService.class);
 
     private final MinioClient client;
     private final String bucket;
@@ -87,6 +92,22 @@ public class StorageService {
             throw new BusinessException("Could not upload image: " + e.getMessage());
         }
         return publicUrl + "/" + key;
+    }
+
+    /** Borra el objeto detrás de una URL pública del bucket — best effort:
+     *  un fallo no debe tumbar el request (quedaría una imagen huérfana más). */
+    public void deleteByUrl(String url) {
+        if (url == null || !url.startsWith(publicUrl + "/")) return;
+        String key = url.substring(publicUrl.length() + 1);
+        try {
+            client.removeObject(RemoveObjectArgs.builder()
+                    .bucket(bucket)
+                    .object(key)
+                    .build());
+            log.info("Deleted orphan object {}", key);
+        } catch (Exception e) {
+            log.warn("Could not delete object {}: {}", key, e.getMessage());
+        }
     }
 
     /** URL firmada temporal para leer un objeto — los buckets de Railway son privados. */

@@ -50,6 +50,9 @@ public class Store {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** Soft delete: row stays for order history; hidden from all listings. */
+    private Instant deletedAt;
+
     @PrePersist
     void prePersist() {
         createdAt = Instant.now();

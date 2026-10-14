@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -71,4 +72,7 @@ public class Product {
             inverseJoinColumns = @JoinColumn(name = "size_id"))
     @Builder.Default
     private Set<Size> sizes = new HashSet<>();
+
+    /** Soft delete: row stays for order history; hidden from all listings. */
+    private Instant deletedAt;
 }

@@ -15,7 +15,10 @@ public record DashboardResponse(
         List<Slice> payments,
         List<HourlyPoint> hourly,
         List<TopProduct> topProducts,
-        List<EmployeeSales> employees) {
+        List<EmployeeSales> employees,
+        // entregados dentro del umbral warnMin de su tienda vs después
+        long onTimeOrders,
+        long lateOrders) {
 
     public record Slice(String key, long orders, BigDecimal total) {
     }

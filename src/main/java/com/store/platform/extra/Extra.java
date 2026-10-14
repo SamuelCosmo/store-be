@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 
 @Entity
 @Table(name = "extras")
@@ -33,4 +34,7 @@ public class Extra {
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;
+
+    /** Soft delete: row stays for order history; hidden from all listings. */
+    private Instant deletedAt;
 }

@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -51,7 +52,7 @@ public class UserService {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found: " + clientId));
         String email = normalizeEmail(request.email());
-        if (userRepository.existsByEmailIgnoreCase(email)) {
+        if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
             throw new DuplicateResourceException("Email already registered: " + email);
         }
         User user = User.builder()
@@ -67,7 +68,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<UserResponse> listByClient(Long clientId) {
-        return userRepository.findByClientId(clientId).stream()
+        return userRepository.findByClientIdAndDeletedAtIsNull(clientId).stream()
                 .map(UserResponse::from)
                 .toList();
     }
@@ -91,7 +92,7 @@ public class UserService {
             }
         }
         String email = normalizeEmail(request.email());
-        if (userRepository.existsByEmailIgnoreCaseAndIdNot(email, id)) {
+        if (userRepository.existsByEmailIgnoreCaseAndIdNotAndDeletedAtIsNull(email, id)) {
             throw new DuplicateResourceException("Email already registered: " + email);
         }
         user.setName(request.name());
@@ -122,7 +123,11 @@ public class UserService {
         if (user.getId().equals(AuthContext.current().userId())) {
             throw new BusinessException("You cannot delete your own account");
         }
-        userRepository.delete(user);
+        user.setDeletedAt(Instant.now());
+        // email es UNIQUE a nivel DB: se reescribe para liberar el correo y que
+        // pueda registrarse de nuevo (la fila queda para el historial de órdenes)
+        user.setEmail(user.getEmail() + ".deleted-" + user.getId());
+        userRepository.save(user);
     }
 
     /** Caller must re-enter their own password to mutate other users. */
@@ -137,6 +142,7 @@ public class UserService {
     /** User must belong to the caller's client. */
     private User findOwnedOrThrow(Long id) {
         User user = userRepository.findById(id)
+                .filter(u -> u.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
         if (!user.getClient().getId().equals(AuthContext.current().clientId())) {
             throw new ResourceNotFoundException("User not found: " + id);

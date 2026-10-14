@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -42,7 +43,7 @@ public class ExtraService {
 
     @Transactional(readOnly = true)
     public List<ExtraResponse> list() {
-        return extraRepository.findByClientIdOrderByName(AuthContext.current().clientId()).stream()
+        return extraRepository.findByClientIdAndDeletedAtIsNullOrderByName(AuthContext.current().clientId()).stream()
                 .map(e -> ExtraResponse.from(e, productIds(e.getId())))
                 .toList();
     }
@@ -60,15 +61,19 @@ public class ExtraService {
     @Transactional
     public void delete(Long id) {
         Extra extra = findOwnedOrThrow(id);
-        productRepository.findDistinctByExtras_Id(id)
+        // se desvincula de los productos para que no quede ordenable; el join
+        // histórico vive en el snapshot de la orden, no en esta tabla
+        productRepository.findDistinctByExtras_IdAndDeletedAtIsNull(id)
                 .forEach(p -> p.getExtras().remove(extra));
-        extraRepository.delete(extra);
+        extra.setDeletedAt(Instant.now());
+        extraRepository.save(extra);
     }
 
     /** Extra must belong to the caller's client — foreign extras are invisible. */
     @Transactional(readOnly = true)
     public Extra findOwnedOrThrow(Long id) {
         Extra extra = extraRepository.findById(id)
+                .filter(e -> e.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Extra not found: " + id));
         if (!extra.getClient().getId().equals(AuthContext.current().clientId())) {
             throw new ResourceNotFoundException("Extra not found: " + id);
@@ -82,7 +87,7 @@ public class ExtraService {
         Set<Product> wanted = productIds.stream()
                 .map(pid -> resolveProduct(pid, clientId))
                 .collect(Collectors.toSet());
-        for (Product p : productRepository.findDistinctByExtras_Id(extra.getId())) {
+        for (Product p : productRepository.findDistinctByExtras_IdAndDeletedAtIsNull(extra.getId())) {
             if (!wanted.contains(p)) p.getExtras().remove(extra);
         }
         for (Product p : wanted) p.getExtras().add(extra);
@@ -90,6 +95,7 @@ public class ExtraService {
 
     private Product resolveProduct(Long id, Long clientId) {
         Product product = productRepository.findById(id)
+                .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + id));
         boolean owned = product.getCategory().getStores().stream()
                 .anyMatch(s -> s.getClient().getId().equals(clientId));
@@ -98,7 +104,7 @@ public class ExtraService {
     }
 
     private List<Long> productIds(Long extraId) {
-        return productRepository.findDistinctByExtras_Id(extraId).stream()
+        return productRepository.findDistinctByExtras_IdAndDeletedAtIsNull(extraId).stream()
                 .map(Product::getId)
                 .toList();
     }

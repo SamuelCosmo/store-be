@@ -81,6 +81,12 @@ public class Order {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** Cuándo pasó a READY — nullable en órdenes viejas o canceladas antes. */
+    private Instant readyAt;
+
+    /** Cuándo se entregó (COMPLETED) — base de la métrica a tiempo/atrasado. */
+    private Instant completedAt;
+
     @PrePersist
     void prePersist() {
         createdAt = Instant.now();

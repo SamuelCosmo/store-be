@@ -13,11 +13,11 @@ import java.util.Optional;
 
 public interface StoreRepository extends JpaRepository<Store, Long> {
 
-    List<Store> findByClientId(Long clientId);
+    List<Store> findByClientIdAndDeletedAtIsNull(Long clientId);
 
-    long countByClientId(Long clientId);
+    long countByClientIdAndDeletedAtIsNull(Long clientId);
 
-    @Query("select s from Store s where s.client.id = :clientId and ("
+    @Query("select s from Store s where s.client.id = :clientId and s.deletedAt is null and ("
             + ":q = '' or lower(s.name) like concat('%', lower(:q), '%') "
             + "or lower(coalesce(s.description, '')) like concat('%', lower(:q), '%') "
             + "or lower(coalesce(s.address, '')) like concat('%', lower(:q), '%'))")
@@ -26,6 +26,6 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
     /** Lock de fila — serializa la asignación del folio semanal al crear
      *  órdenes concurrentes en la misma tienda. */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select s from Store s where s.id = :id")
+    @Query("select s from Store s where s.id = :id and s.deletedAt is null")
     Optional<Store> findByIdForUpdate(@Param("id") Long id);
 }

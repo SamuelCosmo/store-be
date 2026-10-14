@@ -32,7 +32,7 @@ public class DataSeeder implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (!seedDevData || userRepository.existsByEmailIgnoreCase(ADMIN_EMAIL)) {
+        if (!seedDevData || userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(ADMIN_EMAIL)) {
             return;
         }
         ClientResponse client = clientService.create(

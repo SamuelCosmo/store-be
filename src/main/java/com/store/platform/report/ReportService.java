@@ -66,8 +66,17 @@ public class ReportService {
                 .map(Order::getTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // TODO: métrica de pedidos a tiempo vs atrasados (requiere timestamps de
-        //  preparación/entrega en Order o un umbral de tiempo por tienda)
+        long onTime = 0, late = 0;
+        for (Order o : sold) {
+            // solo cuentan las ya entregadas; viejas sin completedAt se saltan
+            if (o.getCompletedAt() == null) continue;
+            int warnMin = o.getStore().getKitchenWarnMin() != null
+                    ? o.getStore().getKitchenWarnMin() : 15;
+            long elapsedMin = java.time.Duration
+                    .between(o.getCreatedAt(), o.getCompletedAt()).toMinutes();
+            if (elapsedMin <= warnMin) onTime++; else late++;
+        }
+
         return new DashboardResponse(
                 totalSales,
                 sold.size(),
@@ -80,7 +89,9 @@ public class ReportService {
                 slices(sold, Order::getPaymentMethod),
                 hourly(sold),
                 topProducts(sold, top),
-                byEmployee(sold));
+                byEmployee(sold),
+                onTime,
+                late);
     }
 
     private List<Slice> slices(List<Order> orders, java.util.function.Function<Order, ?> key) {
