@@ -18,6 +18,7 @@ y extendida con el modelo de negocio multi-tenant).
 11. [Frontend Integration Guide](11-frontend-integration.md) *(repo Next.js separado)*
 12. [Extras del cliente](12-client-extras.md) *(fichas, reportes, barra, tickets, reservaciones)*
 13. [Módulos y permisos por cliente](13-modules-and-permissions.md) *(producto modular: módulos contratados por tenant y asignados por usuario)*
+14. [Terminales de pago con tarjeta](14-card-terminals.md) *(opciones por restaurante: Total POS, Billpocket, Mercado Pago, NetPay — pasos del cliente y de la plataforma)*
 
 ## Resumen
 
