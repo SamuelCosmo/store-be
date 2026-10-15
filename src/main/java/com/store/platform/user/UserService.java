@@ -1,5 +1,6 @@
 package com.store.platform.user;
 
+import com.store.platform.auth.dto.StoreOption;
 import com.store.platform.client.Client;
 import com.store.platform.client.ClientRepository;
 import com.store.platform.common.exception.BusinessException;
@@ -15,6 +16,7 @@ import com.store.platform.user.dto.UserUpdateRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.store.platform.security.AuthUser;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -158,6 +160,24 @@ public class UserService {
         user.setEmail(email);
         user.setDeletedAt(null);
         return UserResponse.from(userRepository.save(user));
+    }
+
+    /** Tiendas que el usuario puede ver/operar: ADMIN → todas las del
+     *  cliente; el resto → sus asignadas (user_stores) no eliminadas. */
+    @Transactional(readOnly = true)
+    public List<StoreOption> viewableStores() {
+        AuthUser auth = AuthContext.current();
+        if (auth.role() == User.Role.ADMIN) {
+            return storeRepository.findByClientIdAndDeletedAtIsNull(auth.clientId()).stream()
+                    .map(s -> new StoreOption(s.getId(), s.getName()))
+                    .toList();
+        }
+        User user = userRepository.findById(auth.userId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        return user.getStores().stream()
+                .filter(s -> s.getDeletedAt() == null)
+                .map(s -> new StoreOption(s.getId(), s.getName()))
+                .toList();
     }
 
     /** Caller must re-enter their own password to mutate other users. */

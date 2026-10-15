@@ -1,5 +1,6 @@
 package com.store.platform.user;
 
+import com.store.platform.auth.dto.StoreOption;
 import com.store.platform.security.AuthContext;
 import com.store.platform.user.dto.ActiveRequest;
 import com.store.platform.user.dto.PasswordRequest;
@@ -14,12 +15,20 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/users")
 @RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
+
+    /** Tiendas visibles del usuario logueado (selector multi-tienda del KDS). */
+    @GetMapping("/me/stores")
+    public List<StoreOption> myStores() {
+        return userService.viewableStores();
+    }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
