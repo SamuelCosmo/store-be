@@ -114,11 +114,15 @@ public class ProductService {
         product.setImage(request.image());
         product.setPrice(request.price());
         product.setTokenCost(request.tokenCost() == null ? 0 : request.tokenCost());
+        // mutar la colección gestionada — reemplazarla con un set inmutable
+        // rompe el sync del join en flush
         if (request.extraIds() != null) {
-            product.setExtras(resolveExtras(request.extraIds()));
+            product.getExtras().clear();
+            product.getExtras().addAll(resolveExtras(request.extraIds()));
         }
         if (request.sizeIds() != null) {
-            product.setSizes(resolveSizes(request.sizeIds()));
+            product.getSizes().clear();
+            product.getSizes().addAll(resolveSizes(request.sizeIds()));
         }
         Product saved = productRepository.save(product);
         // la imagen reemplazada queda huérfana en el bucket

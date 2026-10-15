@@ -116,7 +116,9 @@ public class CategoryService {
         category.setIcon(request.icon());
         if (request.active() != null) category.setActive(request.active());
         if (request.storeIds() != null) {
-            category.setStores(resolveStores(request.storeIds(), auth));
+            // mutar la colección gestionada — reemplazarla rompe el sync del join
+            category.getStores().clear();
+            category.getStores().addAll(resolveStores(request.storeIds(), auth));
         }
         return toResponse(categoryRepository.save(category));
     }

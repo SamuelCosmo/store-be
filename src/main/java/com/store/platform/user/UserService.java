@@ -101,7 +101,8 @@ public class UserService {
             user.setPassword(passwordEncoder.encode(request.password()));
         }
         user.setRole(request.role());
-        user.setStores(resolveStores(user.getClient().getId(), request.storeIds()));
+        user.getStores().clear();
+        user.getStores().addAll(resolveStores(user.getClient().getId(), request.storeIds()));
         return UserResponse.from(userRepository.save(user));
     }
 
