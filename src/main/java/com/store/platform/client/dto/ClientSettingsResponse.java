@@ -10,6 +10,8 @@ public record ClientSettingsResponse(
         String logoUrl,
         String currency,
         BigDecimal taxRate,
+        /** Precio de venta de una ficha — 0 = módulo fichas desactivado. */
+        BigDecimal tokenPrice,
         int kioskReceiptSeconds,
         Map<String, Integer> sessionHours) {
 
@@ -26,6 +28,7 @@ public record ClientSettingsResponse(
                 client.getLogoUrl(),
                 client.getCurrency() != null ? client.getCurrency() : "MXN",
                 client.getTaxRate() != null ? client.getTaxRate() : BigDecimal.ZERO,
+                client.getTokenPrice() != null ? client.getTokenPrice() : BigDecimal.ZERO,
                 client.getKioskReceiptSeconds() != null ? client.getKioskReceiptSeconds() : 10,
                 client.getSessionHours() != null ? client.getSessionHours() : DEFAULT_HOURS);
     }

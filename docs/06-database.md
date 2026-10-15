@@ -46,8 +46,8 @@ Client (tenant: restaurante, café, etc.)
 - `inventory`
 - `orders`
 - `order_items`
-- `token_transactions` *(extras del cliente — movimientos de fichas físicas:
-  PURCHASE/REDEMPTION/ADJUSTMENT; ver [12](12-client-extras.md))*
+- `token_sales` *(venta de fichas físicas en caja — el canje es una orden con
+  `payment_method=TOKEN`; ver [12](12-client-extras.md))*
 - `tables` *(mesas y sillas de barra; `zone`: `DINING`/`BAR`)*
 - `reservations` *(reservación de mesas y sillas de barra)*
 - `tickets` *(folio impreso por orden/transacción — opcional)*
@@ -76,7 +76,9 @@ Client (tenant: restaurante, café, etc.)
 | ------------- | ------------------------------------------------------------- |
 | `clients`     | 1:N → `stores` (el cliente tiene varios establecimientos);    |
 |               | `logo_url` — marca del tenant (subida vía                     |
-|               | `POST /api/uploads/brand` → `clients/{id}/brand/` en S3)      |
+|               | `POST /api/uploads/brand` → `clients/{id}/brand/` en S3);     |
+|               | `token_price` — precio de venta de la ficha (null/0 = venta   |
+|               | deshabilitada, el POS oculta el botón)                        |
 | `stores`      | FK → `clients`, `business_type` (RESTAURANT/RETAIL/BAR/CAFE)  |
 |               | — preset de módulos sugerido por giro                         |
 | `users`       | FK → `clients` (tenant); `user_stores` acota a qué            |
@@ -99,7 +101,9 @@ Client (tenant: restaurante, café, etc.)
 |               | kiosko),                                                      |
 |               | `status` (PENDING/PREPARING/READY/COMPLETED/CANCELLED),       |
 |               | `channel` (POS/KIOSK), `order_type` (DINE_IN/TAKEAWAY),       |
-|               | `payment_method` (CASH/CARD), `refund_status`                 |
+|               | `payment_method` (CASH/CARD/TOKEN — TOKEN = canje de fichas,  |
+|               | `total = 0` y `token_amount` = fichas cobradas),              |
+|               | `refund_status`                                             |
 |               | (NONE/REFUNDED — se marca al cancelar una orden pagada),      |
 |               | `subtotal`, `tax_rate`, `tax_amount`, `total` — snapshot del  |
 |               | cobro al momento de crearla (no recalcula con settings),      |
@@ -110,20 +114,22 @@ Client (tenant: restaurante, café, etc.)
 | `order_items` | FK → `orders`, FK → `products` — snapshot por línea:          |
 |               | `unit_price` (base + size al cobrar), `quantity`, `size_id` + |
 |               | `size_name`, `extras` (jsonb: nombre+precio por línea),       |
+|               | `token_cost` (snapshot del producto — fichas por unidad),     |
 |               | `notes` — sobrevive cambios de catálogo/precios               |
-| `token_transactions`| FK → `stores`, `type` (PURCHASE/REDEMPTION/ADJUSTMENT),       |
-|                     | `quantity`, FK → `users` (staff que vendió/canjeó — las       |
-|                     | fichas son físicas, sin wallet), FK opcional → `products`     |
+| `token_sales` | FK → `stores`, `quantity`, `unit_price`/`total_price`         |
+|               | (snapshot de `clients.token_price` al vender),                |
+|               | `payment_method` (CASH/CARD), FK → `users` (staff que vendió  |
+|               | — las fichas son físicas, sin wallet). El canje NO va aquí:   |
+|               | es una orden con `payment_method = TOKEN`                     |
 | `tables`      | FK → `stores`, `zone` (DINING/BAR), `seats`, `number` —       |
 |               | la barra son 6 registros con `zone=BAR`, `seats=1`            |
 | `reservations`| FK → `tables`, `date`, `time_slot`, `party_size`,             |
 |               | `customer_name`, `phone`, `status` (PENDING/CONFIRMED/        |
 |               | SEATED/CANCELLED/NO_SHOW) — sin solapamientos por mesa        |
 | `tickets`     | **pendiente de implementar** — diseño: FK → `orders` (o       |
-|               | `token_transactions`), `ticket_number` consecutivo por        |
-|               | `stores`, `printed_at`. Hoy el ticket se arma al vuelo desde  |
-|               | `orders` (`GET /api/orders/{id}/ticket`) y el folio mostrado  |
-|               | es `#id` — falta persistir el consecutivo semanal por store   |
+|               | `token_sales`), `printed_at`. Hoy el ticket se arma al vuelo  |
+|               | desde `orders` (`GET /api/orders/{id}/ticket`); el folio ya   |
+|               | es `orders.ticket_number` (consecutivo semanal por store)     |
 
 ## Integridad multi-tenant
 
@@ -151,4 +157,7 @@ ticket) sobreviva.
 - Login bloqueado para usuarios borrados (`findByEmail…​AndDeletedAtIsNull`);
   su JWT vigente sigue válido hasta `exp` (el filtro no consulta la DB —
   mismo alcance que `active=false`).
-- No hay endpoint de restore ni purge — la fila queda solo para historial.
+- Los listados aceptan `?deleted=true` (solo borrados) y cada recurso expone
+  `POST /{id}/restore` que limpia la marca (en `users` además restaura el
+  email original quitando el sufijo `.deleted-{id}` — 409 si ya se re-usó).
+- No hay purge definitivo — la fila queda solo para historial.

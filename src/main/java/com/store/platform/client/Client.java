@@ -44,6 +44,10 @@ public class Client {
 
     private BigDecimal taxRate;
 
+    /** Precio de venta de una ficha (canjeable por productos con tokenCost>0).
+     *  null/0 → el tenant no vende fichas. */
+    private BigDecimal tokenPrice;
+
     private Integer kioskReceiptSeconds;
 
     /** Session duration per role, in hours (0 = never close). */

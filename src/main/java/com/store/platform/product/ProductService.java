@@ -150,6 +150,25 @@ public class ProductService {
         productRepository.save(product);
     }
 
+    public List<ProductResponse> listDeleted() {
+        return productRepository
+                .findDistinctByCategory_Stores_Client_IdAndDeletedAtIsNotNull(AuthContext.current().clientId())
+                .stream().map(ProductResponse::from).toList();
+    }
+
+    @Transactional
+    public ProductResponse restore(Long id) {
+        Product product = productRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + id));
+        boolean owned = product.getCategory().getStores().stream()
+                .anyMatch(s -> s.getClient().getId().equals(AuthContext.current().clientId()));
+        if (!owned) {
+            throw new ResourceNotFoundException("Product not found: " + id);
+        }
+        product.setDeletedAt(null);
+        return ProductResponse.from(productRepository.save(product));
+    }
+
     private Set<Extra> resolveExtras(List<Long> extraIds) {
         if (extraIds == null || extraIds.isEmpty()) return Set.of();
         return extraIds.stream()

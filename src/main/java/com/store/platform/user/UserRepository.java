@@ -24,6 +24,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     List<User> findByClientIdAndDeletedAtIsNull(Long clientId);
 
+    List<User> findByClientIdAndDeletedAtIsNotNullOrderByName(Long clientId);
+
     @Query("select u from User u where u.client.id = :clientId and u.deletedAt is null and ("
             + ":q = '' or lower(u.name) like concat('%', lower(:q), '%') "
             + "or lower(u.email) like concat('%', lower(:q), '%'))")

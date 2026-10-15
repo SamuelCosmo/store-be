@@ -15,6 +15,8 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
 
     List<Store> findByClientIdAndDeletedAtIsNull(Long clientId);
 
+    List<Store> findByClientIdAndDeletedAtIsNotNull(Long clientId);
+
     long countByClientIdAndDeletedAtIsNull(Long clientId);
 
     @Query("select s from Store s where s.client.id = :clientId and s.deletedAt is null and ("

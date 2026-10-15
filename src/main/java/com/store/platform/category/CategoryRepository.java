@@ -17,6 +17,8 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     List<Category> findDistinctByStores_Client_IdAndDeletedAtIsNullOrderByName(Long clientId);
 
+    List<Category> findDistinctByStores_Client_IdAndDeletedAtIsNotNullOrderByName(Long clientId);
+
     boolean existsByStores_Client_IdAndNameIgnoreCaseAndDeletedAtIsNull(Long clientId, String name);
 
     boolean existsByStores_Client_IdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(Long clientId, String name, Long id);

@@ -26,6 +26,8 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
 
     List<Product> findDistinctByCategory_Stores_Client_IdAndDeletedAtIsNull(Long clientId);
 
+    List<Product> findDistinctByCategory_Stores_Client_IdAndDeletedAtIsNotNull(Long clientId);
+
     List<Product> findDistinctByCategory_Stores_Client_IdAndActiveTrueAndDeletedAtIsNull(Long clientId);
 
     List<Product> findByCategoryIdAndDeletedAtIsNull(Long categoryId);

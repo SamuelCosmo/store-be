@@ -20,6 +20,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -56,6 +57,32 @@ public class StoreService {
         return storeRepository.findByClientIdAndDeletedAtIsNull(clientId).stream()
                 .map(StoreResponse::from)
                 .toList();
+    }
+
+    /** Solo eliminadas — alimenta el toggle "ver eliminadas" del admin. */
+    public List<StoreResponse> listDeletedByClient(Long clientId) {
+        return storeRepository.findByClientIdAndDeletedAtIsNotNull(clientId).stream()
+                .map(StoreResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public void delete(Long id, Long clientId) {
+        // soft delete — las órdenes históricas siguen apuntando a la tienda
+        Store store = findOwnedOrThrow(id, clientId);
+        store.setDeletedAt(Instant.now());
+        storeRepository.save(store);
+    }
+
+    @Transactional
+    public StoreResponse restore(Long id, Long clientId) {
+        Store store = storeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Store not found: " + id));
+        if (!store.getClient().getId().equals(clientId)) {
+            throw new AccessDeniedException("Store does not belong to your client");
+        }
+        store.setDeletedAt(null);
+        return StoreResponse.from(storeRepository.save(store));
     }
 
     /** Versión paginada para la tabla del admin. */

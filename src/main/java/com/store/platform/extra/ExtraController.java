@@ -25,8 +25,8 @@ public class ExtraController {
     }
 
     @GetMapping
-    public List<ExtraResponse> list() {
-        return extraService.list();
+    public List<ExtraResponse> list(@RequestParam(required = false) Boolean deleted) {
+        return Boolean.TRUE.equals(deleted) ? extraService.listDeleted() : extraService.list();
     }
 
     @PutMapping("/{id}")
@@ -40,5 +40,11 @@ public class ExtraController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         extraService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public ExtraResponse restore(@PathVariable Long id) {
+        return extraService.restore(id);
     }
 }

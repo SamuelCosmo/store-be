@@ -107,6 +107,7 @@ public class ClientService {
         }
         if (request.currency() != null) client.setCurrency(request.currency());
         if (request.taxRate() != null) client.setTaxRate(request.taxRate());
+        if (request.tokenPrice() != null) client.setTokenPrice(request.tokenPrice());
         if (request.kioskReceiptSeconds() != null) client.setKioskReceiptSeconds(request.kioskReceiptSeconds());
         if (request.sessionHours() != null) client.setSessionHours(request.sessionHours());
         return ClientSettingsResponse.from(clientRepository.save(client));

@@ -24,6 +24,8 @@ public record OrderResponse(
         /** Solo pagos en efectivo — null en CARD. */
         BigDecimal cashReceived,
         BigDecimal changeGiven,
+        /** Fichas cobradas — solo pagos TOKEN, null en los demás. */
+        Integer tokenAmount,
         /** Nombre del negocio del tenant — encabezado del recibo/ticket. */
         String clientName,
         /** Logo del tenant — encabezado del recibo/ticket. */
@@ -52,6 +54,7 @@ public record OrderResponse(
                 order.getTaxAmount() == null ? BigDecimal.ZERO : order.getTaxAmount(),
                 order.getCashReceived(),
                 order.getChangeGiven(),
+                order.getTokenAmount(),
                 order.getStore().getClient() == null
                         ? null
                         : order.getStore().getClient().getName(),

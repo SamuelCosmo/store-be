@@ -31,6 +31,8 @@ public record TicketResponse(
         BigDecimal total,
         BigDecimal cashReceived,
         BigDecimal changeGiven,
+        /** Fichas cobradas — solo pagos TOKEN. */
+        Integer tokenAmount,
         Instant createdAt,
         List<OrderItemResponse> items) {
 
@@ -47,6 +49,6 @@ public record TicketResponse(
                 o.userId(), o.channel(), o.orderType(), o.paymentMethod(),
                 o.status(), o.refundStatus(), o.subtotal(), o.taxRate(),
                 o.taxAmount(), o.total(), o.cashReceived(), o.changeGiven(),
-                o.createdAt(), o.items());
+                o.tokenAmount(), o.createdAt(), o.items());
     }
 }

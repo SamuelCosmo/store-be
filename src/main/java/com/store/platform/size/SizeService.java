@@ -79,6 +79,25 @@ public class SizeService {
         sizeRepository.save(size);
     }
 
+    public List<SizeResponse> listDeleted() {
+        return sizeRepository.findByClientIdAndDeletedAtIsNotNullOrderByPositionAscNameAsc(AuthContext.current().clientId()).stream()
+                .map(s -> SizeResponse.from(s, productIds(s.getId())))
+                .toList();
+    }
+
+    /** Revive el catálogo; los productos hay que reasignarlos (el unlink del
+     *  delete no se deshace — la info de asignación ya no existe). */
+    @Transactional
+    public SizeResponse restore(Long id) {
+        Size size = sizeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Size not found: " + id));
+        if (!size.getClient().getId().equals(AuthContext.current().clientId())) {
+            throw new ResourceNotFoundException("Size not found: " + id);
+        }
+        size.setDeletedAt(null);
+        return SizeResponse.from(sizeRepository.save(size), productIds(size.getId()));
+    }
+
     /** Size must belong to the caller's client — foreign sizes are invisible. */
     @Transactional(readOnly = true)
     public Size findOwnedOrThrow(Long id) {

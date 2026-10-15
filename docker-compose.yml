@@ -13,12 +13,17 @@ services:
   # Bucket S3-compatible para imágenes (dev). Adobe S3Mock: acepta cualquier
   # credencial y sirve GETs anónimos → los <img> leen directo sin política.
   # En Railway se apunta STORAGE_* al bucket real — la API es la misma.
+  # OJO: los envs son propiedades Spring de `com.adobe.testing.s3mock.store.*`
+  # (relaxed binding) — los nombres camelCase (initialBuckets/root/…) la
+  # versión actual los ignora y cae a un temp-dir efímero.
   storage:
     image: adobe/s3mock:latest
     environment:
-      initialBuckets: product-images
-      root: /data                  # persiste a disco en vez de memoria
-      retainFilesOnExit: "true"
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIALBUCKETS: product-images
+      COM_ADOBE_TESTING_S3MOCK_STORE_ROOT: /data   # persiste al volumen, no al /tmp efímero
+      COM_ADOBE_TESTING_S3MOCK_STORE_RETAINFILESONEXIT: "true"
+    restart: unless-stopped       # sin esto un reinicio de Docker lo deja caído (imágenes rotas)
+    user: root                    # el volumen nace root-owned; como cnb (uid 1000) no puede escribir → 500
     ports:
       - "9090:9090"
     volumes:

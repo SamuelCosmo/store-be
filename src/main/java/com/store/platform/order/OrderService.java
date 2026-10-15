@@ -85,6 +85,10 @@ public class OrderService {
             throw new ResourceNotFoundException("One or more products not found");
         }
 
+        // TOKEN solo llega por caja: CUSTOMER es forzado a KIOSK y el kiosco
+        // solo acepta CARD — ambos guards ya corren arriba.
+        boolean tokenPayment = request.paymentMethod() == Order.PaymentMethod.TOKEN;
+
         Order order = Order.builder()
                 .store(store)
                 .user(userRepository.getReferenceById(auth.userId()))
@@ -97,6 +101,7 @@ public class OrderService {
                 .build();
 
         BigDecimal total = BigDecimal.ZERO;
+        int tokenAmount = 0;
         for (OrderItemRequest item : request.items()) {
             Product product = byId.get(item.productId());
             if (product.getCategory().getStores().stream().noneMatch(s -> s.getId().equals(storeId))) {
@@ -104,6 +109,9 @@ public class OrderService {
             }
             if (!product.isActive() || product.isSoldOut() || product.getDeletedAt() != null) {
                 throw new BusinessException("Product is not available: " + product.getName());
+            }
+            if (tokenPayment && product.getTokenCost() <= 0) {
+                throw new BusinessException("Not payable with tokens: " + product.getName());
             }
 
             BigDecimal unit = product.getPrice();
@@ -140,22 +148,33 @@ public class OrderService {
                     .sizeName(sizeName)
                     .extras(extras)
                     .notes(item.notes())
+                    .tokenCost(product.getTokenCost())
                     .build());
             total = total.add(unit.multiply(BigDecimal.valueOf(item.quantity())));
+            tokenAmount += product.getTokenCost() * item.quantity();
         }
-        // El impuesto se agrega sobre la suma de items — los precios del
-        // catálogo no lo incluyen. taxRate queda como snapshot del cliente
-        // (sobrevive cambios de settings).
         BigDecimal rate = order.getStore().getClient().getTaxRate();
         if (rate == null || rate.signum() <= 0) {
             rate = BigDecimal.ZERO;
         }
-        BigDecimal taxAmount = total.multiply(rate)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        order.setSubtotal(total);
         order.setTaxRate(rate);
-        order.setTaxAmount(taxAmount);
-        order.setTotal(total.add(taxAmount));
+        if (tokenPayment) {
+            // El dinero entró al vender las fichas (token_sales) — la orden
+            // solo registra el canje: totales en $0 para no inflar ventas.
+            order.setSubtotal(BigDecimal.ZERO);
+            order.setTaxAmount(BigDecimal.ZERO);
+            order.setTotal(BigDecimal.ZERO);
+            order.setTokenAmount(tokenAmount);
+        } else {
+            // El impuesto se agrega sobre la suma de items — los precios del
+            // catálogo no lo incluyen. taxRate queda como snapshot del cliente
+            // (sobrevive cambios de settings).
+            BigDecimal taxAmount = total.multiply(rate)
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+            order.setSubtotal(total);
+            order.setTaxAmount(taxAmount);
+            order.setTotal(total.add(taxAmount));
+        }
         // efectivo recibido → cambio calculado server-side (solo CASH)
         if (request.paymentMethod() == Order.PaymentMethod.CASH
                 && request.cashReceived() != null) {

@@ -76,10 +76,14 @@ public class ClientController {
     @GetMapping("/{id}/stores")
     public Object listStores(@PathVariable Long id,
                              @RequestParam(required = false) String search,
+                             @RequestParam(required = false) Boolean deleted,
                              @RequestParam(required = false) Integer page,
                              @RequestParam(required = false) Integer size,
                              Pageable pageable) {
         requireOwnClient(id);
+        if (Boolean.TRUE.equals(deleted)) {
+            return storeService.listDeletedByClient(id);
+        }
         return page != null || size != null
                 ? storeService.pageByClient(id, search, pageable)
                 : storeService.listByClient(id);

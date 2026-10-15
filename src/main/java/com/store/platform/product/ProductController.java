@@ -31,10 +31,14 @@ public class ProductController {
     public Object list(@RequestParam(required = false) Long storeId,
                        @RequestParam(required = false) Long categoryId,
                        @RequestParam(required = false) Boolean activeOnly,
+                       @RequestParam(required = false) Boolean deleted,
                        @RequestParam(required = false) String search,
                        @RequestParam(required = false) Integer page,
                        @RequestParam(required = false) Integer size,
                        Pageable pageable) {
+        if (Boolean.TRUE.equals(deleted)) {
+            return productService.listDeleted();
+        }
         return page != null || size != null
                 ? productService.listPage(storeId, categoryId, activeOnly, search, pageable)
                 : productService.list(storeId, categoryId, activeOnly);
@@ -69,5 +73,11 @@ public class ProductController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         productService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public ProductResponse restore(@PathVariable Long id) {
+        return productService.restore(id);
     }
 }

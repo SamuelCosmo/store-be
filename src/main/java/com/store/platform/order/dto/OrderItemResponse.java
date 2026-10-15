@@ -14,6 +14,8 @@ public record OrderItemResponse(
         String sizeName,
         List<ItemExtraSnapshot> extras,
         String notes,
+        /** Fichas por unidad (snapshot) — 0 en items viejos o no canjeables. */
+        int tokenCost,
         BigDecimal subtotal) {
 
     public static OrderItemResponse from(OrderItem item) {
@@ -26,6 +28,7 @@ public record OrderItemResponse(
                 // null en items creados antes de la columna extras jsonb
                 item.getExtras() == null ? List.of() : item.getExtras(),
                 item.getNotes(),
+                item.getTokenCost() == null ? 0 : item.getTokenCost(),
                 item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
     }
 }

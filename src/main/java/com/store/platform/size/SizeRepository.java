@@ -8,5 +8,7 @@ public interface SizeRepository extends JpaRepository<Size, Long> {
 
     List<Size> findByClientIdAndDeletedAtIsNullOrderByPositionAscNameAsc(Long clientId);
 
+    List<Size> findByClientIdAndDeletedAtIsNotNullOrderByPositionAscNameAsc(Long clientId);
+
     long countByClientIdAndDeletedAtIsNull(Long clientId);
 }

@@ -62,9 +62,16 @@ Aparece en la pantalla de barra para preparar/entregar
 ### Endpoints
 
 ```text
-POST   /api/tokens/purchase        # { quantity, paymentMethod } — caja (staff)
-POST   /api/tokens/redeem          # { productId, quantity } — barra (staff)
+POST   /api/tokens                 # { quantity, paymentMethod: CASH|CARD } — caja (staff)
+GET    /api/tokens                 # ?storeId=&from=&to= — ventas del rango
+# El canje es una orden: POST /api/orders con paymentMethod=TOKEN
+# (total = 0; tokenCost por producto; OrderResponse.tokenAmount)
 ```
+
+> Implementado con ese contrato (ver `07-api.md` → Tokens): la venta cobra
+> `quantity × clients.tokenPrice`; el canje es una orden con `paymentMethod:
+> TOKEN` en vez de un endpoint `/redeem` dedicado — así el KDS la ve como
+> orden normal y el corte de caja la distingue por método de pago.
 
 ## 2. Reportes de administración
 

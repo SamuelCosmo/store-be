@@ -28,9 +28,13 @@ public class CategoryController {
     @GetMapping
     public Object list(@RequestParam(required = false) Long storeId,
                        @RequestParam(required = false) String search,
+                       @RequestParam(required = false) Boolean deleted,
                        @RequestParam(required = false) Integer page,
                        @RequestParam(required = false) Integer size,
                        Pageable pageable) {
+        if (Boolean.TRUE.equals(deleted)) {
+            return categoryService.listDeleted();
+        }
         return page != null || size != null
                 ? categoryService.listPage(storeId, search, pageable)
                 : categoryService.list(storeId);
@@ -52,5 +56,11 @@ public class CategoryController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         categoryService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public CategoryResponse restore(@PathVariable Long id) {
+        return categoryService.restore(id);
     }
 }

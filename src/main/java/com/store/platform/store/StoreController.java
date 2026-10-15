@@ -41,6 +41,19 @@ public class StoreController {
         return storeService.update(id, request, AuthContext.current().clientId());
     }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> delete(@PathVariable Long id) {
+        storeService.delete(id, AuthContext.current().clientId());
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public StoreResponse restore(@PathVariable Long id) {
+        return storeService.restore(id, AuthContext.current().clientId());
+    }
+
     @GetMapping("/{id}/settings")
     public StoreSettingsResponse getSettings(@PathVariable Long id) {
         return storeService.getSettings(id, AuthContext.current().clientId());

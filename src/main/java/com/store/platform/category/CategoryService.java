@@ -133,6 +133,25 @@ public class CategoryService {
         categoryRepository.save(category);
     }
 
+    public List<CategoryResponse> listDeleted() {
+        return categoryRepository
+                .findDistinctByStores_Client_IdAndDeletedAtIsNotNullOrderByName(AuthContext.current().clientId())
+                .stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
+    public CategoryResponse restore(Long id) {
+        Category category = categoryRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
+        boolean owned = category.getStores().stream()
+                .anyMatch(s -> s.getClient().getId().equals(AuthContext.current().clientId()));
+        if (!owned) {
+            throw new ResourceNotFoundException("Category not found: " + id);
+        }
+        category.setDeletedAt(null);
+        return toResponse(categoryRepository.save(category));
+    }
+
     /** Category must be assigned to a store the caller may operate. */
     @Transactional(readOnly = true)
     public Category findScopedOrThrow(Long id) {

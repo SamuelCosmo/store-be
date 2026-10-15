@@ -74,6 +74,9 @@ public class Order {
     /** Cambio devuelto = cashReceived - total — solo pagos CASH. */
     private BigDecimal changeGiven;
 
+    /** Fichas cobradas — solo pagos TOKEN (el dinero se registró al venderlas). */
+    private Integer tokenAmount;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();
@@ -96,7 +99,7 @@ public class Order {
 
     public enum OrderType { DINE_IN, TAKEAWAY }
 
-    public enum PaymentMethod { CASH, CARD }
+    public enum PaymentMethod { CASH, CARD, TOKEN }
 
     public enum Status { PENDING, CONFIRMED, PREPARING, READY, COMPLETED, CANCELLED }
 

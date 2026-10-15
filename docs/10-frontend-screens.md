@@ -68,7 +68,8 @@ Pantalla operada por staff para tomar órdenes en el mostrador.
 - **Cancelar orden** (hasta `PREPARING`) → `PATCH /api/orders/{id}/status`
   con `CANCELLED`; restaura inventario. Si estaba pagada, el staff devuelve
   el dinero manualmente y la orden queda `refund_status = REFUNDED`
-- **Venta de fichas** *(extra del cliente)* → `POST /api/tokens/purchase`
+- **Venta de fichas** *(extra del cliente)* → `POST /api/tokens`
+  `{quantity, paymentMethod}` (cobra `quantity × clients.tokenPrice`)
 - **Imprime ticket** de la orden → `GET /api/orders/{id}/ticket`
 
 Rol: `EMPLOYEE` / `MANAGER`.
@@ -108,7 +109,8 @@ Pantalla del bartender, análoga al KDS: muestra los items de bebida de las
 
 - Lista items de bebida: `GET /api/bar/items?status=`
 - Marca item entregado: `PATCH /api/bar/items/{id}/status`
-- Canje de fichas por bebida: `POST /api/tokens/redeem`
+- Canje de fichas por bebida: orden con `paymentMethod: TOKEN`
+  (`POST /api/orders`, `total = 0`, `tokenAmount` = fichas)
 
 Rol: `EMPLOYEE` / `MANAGER` (barra).
 

@@ -33,10 +33,14 @@ public class UserController {
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
     public Object listByClient(@RequestParam(required = false) String search,
+                               @RequestParam(required = false) Boolean deleted,
                                @RequestParam(required = false) Integer page,
                                @RequestParam(required = false) Integer size,
                                Pageable pageable) {
         Long clientId = AuthContext.current().clientId();
+        if (Boolean.TRUE.equals(deleted)) {
+            return userService.listDeleted(clientId);
+        }
         return page != null || size != null
                 ? userService.pageByClient(clientId, search, pageable)
                 : userService.listByClient(clientId);
@@ -60,5 +64,11 @@ public class UserController {
     public ResponseEntity<Void> delete(@PathVariable Long id, @Valid @RequestBody PasswordRequest request) {
         userService.delete(id, request);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public UserResponse restore(@PathVariable Long id) {
+        return userService.restore(id);
     }
 }

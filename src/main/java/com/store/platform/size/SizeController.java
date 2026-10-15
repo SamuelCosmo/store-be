@@ -25,8 +25,8 @@ public class SizeController {
     }
 
     @GetMapping
-    public List<SizeResponse> list() {
-        return sizeService.list();
+    public List<SizeResponse> list(@RequestParam(required = false) Boolean deleted) {
+        return Boolean.TRUE.equals(deleted) ? sizeService.listDeleted() : sizeService.list();
     }
 
     @PutMapping("/{id}")
@@ -46,5 +46,11 @@ public class SizeController {
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         sizeService.delete(id);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public SizeResponse restore(@PathVariable Long id) {
+        return sizeService.restore(id);
     }
 }

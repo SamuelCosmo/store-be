@@ -130,6 +130,35 @@ public class UserService {
         userRepository.save(user);
     }
 
+    @Transactional(readOnly = true)
+    public List<UserResponse> listDeleted(Long clientId) {
+        return userRepository.findByClientIdAndDeletedAtIsNotNullOrderByName(clientId).stream()
+                .map(UserResponse::from)
+                .toList();
+    }
+
+    /** Reversa de {@link #delete}: recupera el email original (sufijo
+     *  `.deleted-{id}`) y falla 409 si alguien ya lo registró de nuevo. */
+    @Transactional
+    public UserResponse restore(Long id) {
+        User user = userRepository.findById(id)
+                .filter(u -> u.getDeletedAt() != null)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        if (!user.getClient().getId().equals(AuthContext.current().clientId())) {
+            throw new ResourceNotFoundException("User not found: " + id);
+        }
+        String suffix = ".deleted-" + user.getId();
+        String email = user.getEmail().endsWith(suffix)
+                ? user.getEmail().substring(0, user.getEmail().length() - suffix.length())
+                : user.getEmail();
+        if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
+            throw new DuplicateResourceException("Email already registered: " + email);
+        }
+        user.setEmail(email);
+        user.setDeletedAt(null);
+        return UserResponse.from(userRepository.save(user));
+    }
+
     /** Caller must re-enter their own password to mutate other users. */
     private void requireSelfPassword(String currentPassword) {
         User self = userRepository.findById(AuthContext.current().userId())

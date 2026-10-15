@@ -69,6 +69,25 @@ public class ExtraService {
         extraRepository.save(extra);
     }
 
+    public List<ExtraResponse> listDeleted() {
+        return extraRepository.findByClientIdAndDeletedAtIsNotNullOrderByName(AuthContext.current().clientId()).stream()
+                .map(e -> ExtraResponse.from(e, productIds(e.getId())))
+                .toList();
+    }
+
+    /** Revive el catálogo; los productos hay que reasignarlos (el unlink del
+     *  delete no se deshace — la info de asignación ya no existe). */
+    @Transactional
+    public ExtraResponse restore(Long id) {
+        Extra extra = extraRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Extra not found: " + id));
+        if (!extra.getClient().getId().equals(AuthContext.current().clientId())) {
+            throw new ResourceNotFoundException("Extra not found: " + id);
+        }
+        extra.setDeletedAt(null);
+        return ExtraResponse.from(extraRepository.save(extra), productIds(extra.getId()));
+    }
+
     /** Extra must belong to the caller's client — foreign extras are invisible. */
     @Transactional(readOnly = true)
     public Extra findOwnedOrThrow(Long id) {

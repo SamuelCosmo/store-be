@@ -75,21 +75,23 @@ PUT    /api/clients/{id}/settings   # ADMIN
 POST   /api/stores              # ligado a un clientId
 GET    /api/stores/{id}
 PUT    /api/stores/{id}         # name, description, address, businessType, active
-GET    /api/clients/{id}/stores # listado por cliente (la lista del admin)
+GET    /api/clients/{id}/stores # listado por cliente (la lista del admin; ?deleted=true → solo borradas)
 POST   /api/stores/{id}/devices # alta de POS/KIOSK por tienda
 GET    /api/stores/{id}/devices
 GET    /api/stores/{id}/settings   # settings del establecimiento
 PUT    /api/stores/{id}/settings   # ADMIN
+DELETE /api/stores/{id}            # baja lógica (ADMIN) — las órdenes históricas la conservan
+POST   /api/stores/{id}/restore    # ADMIN
 ```
 
-- `active` default `true` al dar de alta; sin DELETE (activar/desactivar).
+- `active` default `true` al dar de alta.
 - Settings por establecimiento: `{ menuName, kitchenOkMin, kitchenWarnMin,
   kitchenSound }` — `menuName` vacío → se usa el `name` del store.
   **`menuName` quedó legacy** (sin input en `/settings`): el nombre que se
   muestra en pantallas y tickets es `clients.name` (Marca); el campo sigue
   aceptándose por compatibilidad.
 - Settings por cliente: `{ name, logoUrl, currency, taxRate,
-  kioskReceiptSeconds, sessionHours }` — `sessionHours` es
+  kioskReceiptSeconds, sessionHours, tokenPrice }` — `sessionHours` es
   `{ rol: horas }` (0 = no cerrar). `name`/`logoUrl` son la marca del
   tenant: `name` vacío se ignora, `logoUrl: ""` quita el logo; la
   imagen se sube con `POST /api/uploads/brand` (solo ADMIN, guarda en
@@ -191,11 +193,14 @@ POST   /api/users                    # alta (ADMIN)
 GET    /api/users                    # lista del cliente (ADMIN/MANAGER)
 PUT    /api/users/{id}               # editar (ADMIN) — password opcional
 PATCH  /api/users/{id}/active        # activar/desactivar (ADMIN)
-DELETE /api/users/{id}               # baja (ADMIN)
+DELETE /api/users/{id}               # baja (ADMIN) — soft delete
+POST   /api/users/{id}/restore       # ADMIN — recupera el email original (409 si ya se re-usó)
 ```
 
+- `GET /api/users?deleted=true` lista solo los borrados.
 - **Todas las mutaciones exigen `currentPassword`** — la contraseña del admin
   con la sesión iniciada (re-autenticación); 401 si no coincide.
+  (Restore no la pide — la fila nunca se destruyó).
 - No puedes desactivarte, eliminarte ni cambiar tu propio rol.
 - `users.active = false` ⇒ login rechazado (`Invalid credentials`).
 - User: `{ name, email, password?, role, storeIds[], active, currentPassword }`
@@ -290,16 +295,40 @@ PATCH  /api/orders/{id}/status
   encabezado del recibo/ticket muestra la marca del negocio y el front
   cae a `storeName` si falta.
 
-## Tokens (fichas para bebidas) *(pendiente de implementar)*
+## Tokens (fichas para bebidas) ✅
 
 ```text
-POST   /api/tokens/purchase     # { quantity, paymentMethod } — venta en caja
-POST   /api/tokens/redeem       # { productId, quantity } — canje en barra
+POST   /api/tokens              # { quantity, paymentMethod: CASH|CARD } — venta en caja
+GET    /api/tokens              # ?storeId=&from=&to= — ventas del rango (default hoy)
 ```
 
-**Reglas:** fichas físicas anónimas — no hay wallet ni cuenta de customer;
-solo productos con `tokenCost > 0` son canjeables; el canje descuenta
-inventario; compra y canje quedan ligados al staff autenticado que los operó.
+- **Venta**: `POST /api/tokens` (ADMIN/MANAGER/EMPLOYEE con tienda de sesión;
+  nunca kiosco) crea un `TokenSale` — cobra `quantity × clients.tokenPrice`
+  (snapshot en `unit_price`/`total_price`). 400 si `tokenPrice` no está
+  configurado (≤ 0) — el POS oculta el botón en ese caso.
+- **Canje**: NO es endpoint propio — es una orden normal
+  (`POST /api/orders`) con `paymentMethod: TOKEN`: `total = 0`, se descuenta
+  `tokenCost` por producto y `OrderResponse.tokenAmount` trae el total de
+  fichas (`order_items.token_cost` es el snapshot por ítem). Solo caja — el
+  kiosco no acepta TOKEN (guard de canal).
+- **Reglas:** fichas físicas anónimas — no hay wallet ni cuenta de customer;
+  solo productos con `tokenCost > 0` son canjeables (si el pedido mezcla
+  canjeables con no-canjeables el pago debe ser CASH/CARD); venta y canje
+  quedan ligados al staff autenticado que los operó.
+
+## Borrado lógico y restauración
+
+Catálogos (`categories`, `products`, `extras`, `sizes`), `users` y `stores`:
+
+```text
+GET    /api/{recurso}?deleted=true    # lista SOLO los borrados
+POST   /api/{recurso}/{id}/restore    # reactiva la fila
+```
+
+- Los `DELETE` marcan `deleted_at` (soft delete) — nada se borra físicamente.
+- Restaurar un usuario recupera su email original (el delete lo reescribe con
+  sufijo `.deleted-{id}` para liberar el UNIQUE); 409 si ya fue re-registrado.
+- Restaurar un extra/tamaño no lo re-vincula a productos — hay que reasignarlo.
 
 ## Reports ✅ *(ADMIN/MANAGER)*
 

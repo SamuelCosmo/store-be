@@ -98,10 +98,10 @@ Requerimientos del modelo de negocio (ver [10-frontend-screens](10-frontend-scre
 
 Ver spec completa en [12-client-extras](12-client-extras.md):
 
-- [ ] **Sistema de fichas para bebidas** (físicas/anónimas): venta en caja
-      (`POST /api/tokens/purchase`), canje en barra
-      (`POST /api/tokens/redeem`, productos con `tokenCost > 0`),
-      `token_transactions` ligadas al staff
+- [x] **Sistema de fichas para bebidas** (físicas/anónimas): venta en caja
+      (`POST /api/tokens`, cobra `quantity × clients.tokenPrice`), canje
+      como orden con `paymentMethod: TOKEN` (productos con `tokenCost > 0`,
+      `token_amount` en la orden), `token_sales` ligadas al staff
 - [ ] **Reportes admin**: ventas del día, productos más vendidos y ventas
       por empleado (`GET /api/reports/...`)
 - [ ] **Sección de barra**: pantalla de items de bebida pendientes +

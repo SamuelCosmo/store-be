@@ -10,6 +10,8 @@ public record ClientSettingsRequest(
         String logoUrl,
         String currency,
         BigDecimal taxRate,
+        /** Precio de venta de una ficha — 0/null desactiva el módulo. */
+        BigDecimal tokenPrice,
         Integer kioskReceiptSeconds,
         Map<String, Integer> sessionHours) {
 }

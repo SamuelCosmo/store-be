@@ -49,4 +49,7 @@ public class OrderItem {
 
     @Column(columnDefinition = "text")
     private String notes;
+
+    /** Snapshot del tokenCost del producto — fichas por unidad (0/null = no canjeable). */
+    private Integer tokenCost;
 }

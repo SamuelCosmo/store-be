@@ -7,4 +7,6 @@ import java.util.List;
 public interface ExtraRepository extends JpaRepository<Extra, Long> {
 
     List<Extra> findByClientIdAndDeletedAtIsNullOrderByName(Long clientId);
+
+    List<Extra> findByClientIdAndDeletedAtIsNotNullOrderByName(Long clientId);
 }
