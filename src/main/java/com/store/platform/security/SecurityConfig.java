@@ -44,7 +44,7 @@ public class SecurityConfig {
                         // solo los pasos de login son públicos — register va con SUPERADMIN
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/login", "/api/auth/superadmin", "/api/auth/stores",
-                                "/api/auth/logout")
+                                "/api/auth/logout", "/api/logs")
                         .permitAll()
                         .requestMatchers("/api/media/**").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()

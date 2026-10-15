@@ -5,6 +5,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import org.slf4j.MDC;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,6 +35,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         user, null,
                         List.of(new SimpleGrantedAuthority("ROLE_" + user.role().name())));
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                // contexto para cada línea de log del request (RequestLogFilter limpia el MDC)
+                MDC.put("userId", String.valueOf(user.userId()));
+                MDC.put("clientId", String.valueOf(user.clientId()));
+                MDC.put("storeId", String.valueOf(user.storeId()));
+                MDC.put("role", user.role().name());
             } catch (JwtException | IllegalArgumentException ignored) {
                 // invalid token → request stays unauthenticated
             }

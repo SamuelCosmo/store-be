@@ -16,6 +16,7 @@ import com.store.platform.user.User;
 import com.store.platform.user.UserRepository;
 import com.store.platform.user.UserService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -25,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuthService {
@@ -64,9 +66,13 @@ public class AuthService {
         // La cuenta de plataforma no entra por el login de tenants — mismo
         // error genérico para no filtrar qué correo es superadmin
         if (user.getRole() == User.Role.SUPERADMIN) {
+            log.warn("Login rejected: superadmin on tenant login userId={}", user.getId());
             throw new BadCredentialsException("Invalid credentials");
         }
-        return toResponse(user, resolveStore(user, request.storeId()));
+        Long storeId = resolveStore(user, request.storeId());
+        log.info("Login ok userId={} role={} clientId={} storeId={}",
+                user.getId(), user.getRole(), user.getClient().getId(), storeId);
+        return toResponse(user, storeId);
     }
 
     /** Solo cuentas de plataforma — el front lo usa en /superadmin. */
@@ -74,16 +80,26 @@ public class AuthService {
     public AuthResponse loginSuperadmin(LoginRequest request) {
         User user = authenticate(request);
         if (user.getRole() != User.Role.SUPERADMIN) {
+            log.warn("Superadmin login rejected: not superadmin userId={}", user.getId());
             throw new BadCredentialsException("Invalid credentials");
         }
+        log.info("Superadmin login ok userId={}", user.getId());
         return toResponse(user, null);
     }
 
     private User authenticate(LoginRequest request) {
-        return userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(request.email().trim())
-                .filter(User::isActive)
-                .filter(u -> passwordEncoder.matches(request.password(), u.getPassword()))
-                .orElseThrow(() -> new BadCredentialsException("Invalid credentials"));
+        String email = request.email().trim();
+        var user = userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull(email);
+        if (user.isEmpty()) {
+            log.warn("Login failed: unknown email={}", email);
+        } else if (!user.get().isActive()) {
+            log.warn("Login failed: inactive userId={}", user.get().getId());
+        } else if (!passwordEncoder.matches(request.password(), user.get().getPassword())) {
+            log.warn("Login failed: wrong password userId={}", user.get().getId());
+        } else {
+            return user.get();
+        }
+        throw new BadCredentialsException("Invalid credentials");
     }
 
     /** Tiendas elegibles de la cuenta — el front las pide cuando login

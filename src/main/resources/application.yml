@@ -38,9 +38,22 @@ app:
     secret-key: ${STORAGE_SECRET_KEY:storedev123}
     bucket: ${STORAGE_BUCKET:product-images}
     public-url: ${STORAGE_PUBLIC_URL:http://localhost:9090/product-images}
+  logs:
+    # días que se conservan en app_logs (pantalla de SUPERADMIN); purga diaria 04:15
+    retention-days: ${LOG_RETENTION_DAYS:30}
   seed:
     # Datos de prueba (client_test). false en producción.
     dev-data: ${SEED_DEV_DATA:true}
+
+logging:
+  pattern:
+    # contexto en cada línea (texto plano). En Railway definir
+    # LOGGING_STRUCTURED_FORMAT_CONSOLE=logstash → JSON con estos campos
+    # como atributos filtrables (@requestId:..., @userId:...).
+    correlation: "[req=%X{requestId:-} user=%X{userId:-} store=%X{storeId:-}] "
+  level:
+    # DEBUG muestra también los GET exitosos (polling de KDS/POS)
+    com.store.platform.common.logging: ${LOG_LEVEL_REQUESTS:INFO}
 
 springdoc:
   swagger-ui:
