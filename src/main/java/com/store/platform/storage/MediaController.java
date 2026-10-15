@@ -25,15 +25,21 @@ public class MediaController {
 
     @GetMapping("/{*key}")
     public ResponseEntity<StreamingResponseBody> media(@PathVariable String key) {
-        var obj = storageService.get(key);
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(obj.stat().contentType()))
-                .contentLength(obj.stat().size())
-                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic())
-                .body(out -> {
-                    try (var in = obj.stream()) {
-                        in.transferTo(out);
-                    }
-                });
+        // {*key} captura con slash inicial → "clients/1/x.webp" para Minio
+        if (key.startsWith("/")) key = key.substring(1);
+        var in = storageService.get(key);
+        String contentType = in.headers().get("Content-Type");
+        String length = in.headers().get("Content-Length");
+        var body = ResponseEntity.ok()
+                .contentType(contentType != null
+                        ? MediaType.parseMediaType(contentType)
+                        : MediaType.APPLICATION_OCTET_STREAM)
+                .cacheControl(CacheControl.maxAge(1, TimeUnit.HOURS).cachePublic());
+        if (length != null) body.contentLength(Long.parseLong(length));
+        return body.body(out -> {
+            try (in) {
+                in.transferTo(out);
+            }
+        });
     }
 }

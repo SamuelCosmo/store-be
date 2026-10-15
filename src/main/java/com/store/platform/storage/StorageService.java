@@ -1,6 +1,7 @@
 package com.store.platform.storage;
 
 import com.store.platform.common.exception.BusinessException;
+import com.store.platform.common.exception.ResourceNotFoundException;
 import com.store.platform.security.AuthContext;
 import com.store.platform.security.AuthUser;
 import io.minio.BucketExistsArgs;
@@ -10,16 +11,12 @@ import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
 import io.minio.RemoveObjectArgs;
-import io.minio.StatObjectArgs;
-import io.minio.StatObjectResponse;
 import io.minio.errors.ErrorResponseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
 import java.util.UUID;
@@ -115,25 +112,24 @@ public class StorageService {
         }
     }
 
-    /** Lee un objeto del bucket para servirlo vía /api/media — stream + meta. */
-    public StoredObject get(String key) {
+    /** Lee un objeto del bucket para servirlo vía /api/media — el response
+     *  trae headers (Content-Type/Length). Sin statObject: su HEAD no lo
+     *  soportan todos los mocks S3. */
+    public GetObjectResponse get(String key) {
         try {
-            StatObjectResponse stat = client.statObject(
-                    StatObjectArgs.builder().bucket(bucket).object(key).build());
-            GetObjectResponse stream = client.getObject(
+            return client.getObject(
                     GetObjectArgs.builder().bucket(bucket).object(key).build());
-            return new StoredObject(stat, stream);
         } catch (ErrorResponseException e) {
-            if ("NoSuchKey".equals(e.errorResponse().code())) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Not found");
+            String code = e.errorResponse() != null ? e.errorResponse().code() : "?";
+            log.warn("S3 read failed for {}: {}", key, code);
+            if ("NoSuchKey".equals(code) || "NoSuchBucket".equals(code)) {
+                throw new ResourceNotFoundException("Image not found");
             }
             throw new BusinessException("Could not read image: " + e.getMessage());
         } catch (Exception e) {
             throw new BusinessException("Could not read image: " + e.getMessage());
         }
     }
-
-    public record StoredObject(StatObjectResponse stat, GetObjectResponse stream) {}
 
     /** Crea el bucket si no existe (s3mock ya lo crea vía initialBuckets). */
     private void ensureBucket() throws Exception {
