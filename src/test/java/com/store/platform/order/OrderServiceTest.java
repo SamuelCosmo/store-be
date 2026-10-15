@@ -73,7 +73,7 @@ class OrderServiceTest {
     void kioskRejectsCash() {
         authenticate(User.Role.CUSTOMER);
         OrderRequest request = new OrderRequest(Order.Channel.KIOSK, Order.OrderType.DINE_IN,
-                Order.PaymentMethod.CASH, null,
+                Order.PaymentMethod.CASH, null, null,
                 List.of(new OrderItemRequest(1L, 1, null, null, null)));
         assertThrows(BusinessException.class, () -> orderService.create(request));
         verifyNoInteractions(orderRepository);
@@ -83,7 +83,7 @@ class OrderServiceTest {
     void customerCannotUsePosChannel() {
         authenticate(User.Role.CUSTOMER);
         OrderRequest request = new OrderRequest(Order.Channel.POS, Order.OrderType.TAKEAWAY,
-                Order.PaymentMethod.CARD, null,
+                Order.PaymentMethod.CARD, null, null,
                 List.of(new OrderItemRequest(1L, 1, null, null, null)));
         assertThrows(BusinessException.class, () -> orderService.create(request));
         verifyNoInteractions(orderRepository);
@@ -92,6 +92,7 @@ class OrderServiceTest {
     @Test
     void createComputesTotalFromServerSideUnitPrice() {
         authenticate(User.Role.EMPLOYEE);
+        when(storeService.resolveScope(null)).thenReturn(1L);
         when(productRepository.findAllById(any())).thenReturn(List.of(product));
         when(storeRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(store));
         when(userRepository.getReferenceById(7L)).thenReturn(User.builder().id(7L).build());
@@ -99,7 +100,7 @@ class OrderServiceTest {
 
         // cada línea del request es una línea de orden — no hay merge
         OrderRequest request = new OrderRequest(Order.Channel.POS, Order.OrderType.DINE_IN,
-                Order.PaymentMethod.CASH, new BigDecimal("20.00"),
+                Order.PaymentMethod.CASH, new BigDecimal("20.00"), null,
                 List.of(new OrderItemRequest(1L, 1, null, null, null),
                         new OrderItemRequest(1L, 2, null, null, null)));
 

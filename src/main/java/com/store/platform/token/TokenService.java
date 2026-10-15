@@ -36,7 +36,7 @@ public class TokenService {
     @Transactional
     public TokenSaleResponse purchase(TokenSaleRequest request) {
         AuthUser auth = AuthContext.current();
-        Long storeId = AuthContext.requireStoreId();
+        Long storeId = storeService.resolveScope(request.storeId());
         if (request.paymentMethod() == Order.PaymentMethod.TOKEN) {
             throw new BusinessException("Token sales can't be paid with tokens");
         }

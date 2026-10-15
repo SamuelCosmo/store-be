@@ -15,5 +15,8 @@ public record OrderRequest(
         @NotNull Order.PaymentMethod paymentMethod,
         /** Solo pagos en efectivo — el server calcula `changeGiven`. */
         @PositiveOrZero BigDecimal cashReceived,
+        /** Override de tienda para el selector multi-tienda (admin/gerente);
+         *  null = tienda de sesión como siempre. */
+        Long storeId,
         @NotEmpty List<@Valid OrderItemRequest> items) {
 }

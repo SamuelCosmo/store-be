@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface UserRepository extends JpaRepository<User, Long> {
 
@@ -30,4 +31,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
             + ":q = '' or lower(u.name) like concat('%', lower(:q), '%') "
             + "or lower(u.email) like concat('%', lower(:q), '%'))")
     Page<User> pageByClient(@Param("clientId") Long clientId, @Param("q") String q, Pageable pageable);
+
+    /** IDs de tiendas asignadas al usuario (user_stores) — sin cargar entidades. */
+    @Query("select s.id from User u join u.stores s where u.id = :userId")
+    Set<Long> findStoreIds(@Param("userId") Long userId);
 }

@@ -7,5 +7,8 @@ import jakarta.validation.constraints.Positive;
 public record TokenSaleRequest(
         @Positive int quantity,
         /** Cómo paga el cliente las fichas — CASH o CARD (TOKEN no: sería circular). */
-        @NotNull Order.PaymentMethod paymentMethod) {
+        @NotNull Order.PaymentMethod paymentMethod,
+        /** Override de tienda para el selector multi-tienda del POS;
+         *  null = tienda de sesión como siempre. */
+        Long storeId) {
 }

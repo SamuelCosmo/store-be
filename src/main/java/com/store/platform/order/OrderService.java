@@ -61,7 +61,8 @@ public class OrderService {
     @Transactional
     public OrderResponse create(OrderRequest request) {
         AuthUser auth = AuthContext.current();
-        Long storeId = AuthContext.requireStoreId();
+        // tienda explícita (selector multi-tienda del POS) o la de sesión
+        Long storeId = storeService.resolveScope(request.storeId());
 
         if (auth.role() == User.Role.CUSTOMER && request.channel() != Order.Channel.KIOSK) {
             throw new BusinessException("Customer accounts can only create KIOSK orders");

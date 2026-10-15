@@ -13,6 +13,7 @@ import com.store.platform.store.dto.StoreResponse;
 import com.store.platform.store.dto.StoreSettingsRequest;
 import com.store.platform.store.dto.StoreSettingsResponse;
 import com.store.platform.user.User;
+import com.store.platform.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -30,6 +31,7 @@ public class StoreService {
     private final StoreRepository storeRepository;
     private final DeviceRepository deviceRepository;
     private final ClientRepository clientRepository;
+    private final UserRepository userRepository;
 
     @Transactional
     public StoreResponse create(Long clientId, StoreRequest request) {
@@ -169,7 +171,13 @@ public class StoreService {
             findOwnedOrThrow(requestedStoreId, auth.clientId());
             return requestedStoreId;
         }
-        throw new AccessDeniedException("Switch stores via login (storeId)");
+        // el resto puede scopear a cualquier tienda asignada (user_stores) —
+        // ej. un gerente con varios establecimientos viendo el KDS de otra
+        if (userRepository.findStoreIds(auth.userId()).contains(requestedStoreId)) {
+            findOwnedOrThrow(requestedStoreId, auth.clientId());
+            return requestedStoreId;
+        }
+        throw new AccessDeniedException("You are not assigned to this store");
     }
 
     /** Store lookup scoped to a tenant — foreign stores are invisible, not forbidden. */
