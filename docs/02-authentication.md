@@ -14,26 +14,17 @@ Receive JWT
 Access protected resources
 ```
 
-## Transporte del token: cookie httpOnly
+## Transporte del token: `Authorization: Bearer`
 
-El JWT viaja en la cookie `store_token` (`HttpOnly`, `Path=/`, `Max-Age` =
-`JWT_EXPIRATION_MS`) — **nunca** en el body del login ni en localStorage:
+El JWT llega en el body del login (`AuthResponse.token`) y el cliente lo
+envía como `Authorization: Bearer <jwt>` en cada request autenticada:
 
 - `POST /api/auth/login` y `/api/auth/superadmin` devuelven
-  `Set-Cookie: store_token=<jwt>` (el body ya no expone `token` —
-  `@JsonIgnore` en `AuthResponse`).
-- `POST /api/auth/logout` la expira (`Max-Age=0`) — JS no puede borrar
-  una cookie httpOnly.
-- `JwtAuthFilter` acepta la cookie **o** `Authorization: Bearer`
-  (fallback para scripts/CLI durante la migración).
-- **CSRF:** cuando la autenticación viene de cookie, las mutaciones
-  (POST/PUT/PATCH/DELETE) exigen `Origin`/`Referer` en la allowlist de
-  `app.cors.origins`. CORS lleva `allowCredentials=true` y orígenes
-  explícitos.
-- Config por entorno (`app.cookie.*`): en local `Secure=false` +
-  `SameSite=Lax` (localhost↔localhost es same-site). En Railway:
-  `COOKIE_SECURE=true` y `COOKIE_SAMESITE=None` — `*.up.railway.app`
-  son sitios distintos por public-suffix, `Lax` no enviaría la cookie.
+  `AuthResponse` con `token`.
+- `POST /api/auth/logout` es público e idempotente — quedó para limpiar
+  cookies `store_token` de una versión previa que las usaba; la sesión
+  real muere al borrar el token del cliente.
+- `JwtAuthFilter` lee solo el header `Bearer`.
 
 Nota: un usuario desactivado/eliminado con token vigente conserva acceso
 hasta su `exp` — el filtro no consulta la DB por request (mismo alcance

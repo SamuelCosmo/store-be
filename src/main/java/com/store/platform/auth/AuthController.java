@@ -34,23 +34,18 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request,
-                              HttpServletResponse response) {
-        AuthResponse auth = authService.login(request);
-        response.addHeader(HttpHeaders.SET_COOKIE, authCookie.forToken(auth.token()).toString());
-        return auth;
+    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+        return authService.login(request);
     }
 
     /** Login de plataforma — rechaza roles de tenant; lo usa /superadmin. */
     @PostMapping("/superadmin")
-    public AuthResponse superadminLogin(@Valid @RequestBody LoginRequest request,
-                                        HttpServletResponse response) {
-        AuthResponse auth = authService.loginSuperadmin(request);
-        response.addHeader(HttpHeaders.SET_COOKIE, authCookie.forToken(auth.token()).toString());
-        return auth;
+    public AuthResponse superadminLogin(@Valid @RequestBody LoginRequest request) {
+        return authService.loginSuperadmin(request);
     }
 
-    /** Expira la cookie — httpOnly no la puede tocar el JS del front. */
+    /** Limpia cookies store_token que pudo dejar una versión previa —
+     *  el front lo llama al cerrar sesión; siempre 204. */
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletResponse response) {
         response.addHeader(HttpHeaders.SET_COOKIE, authCookie.clear().toString());
