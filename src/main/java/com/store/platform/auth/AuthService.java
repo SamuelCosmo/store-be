@@ -109,7 +109,7 @@ public class AuthService {
         User user = authenticate(request);
         return user.getStores().stream()
                 .filter(s -> s.getDeletedAt() == null)
-                .map(s -> new StoreOption(s.getId(), s.getName()))
+                .map(StoreOption::from)
                 .toList();
     }
 

@@ -6,6 +6,7 @@ import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.ResourceNotFoundException;
 import com.store.platform.security.AuthContext;
 import com.store.platform.security.AuthUser;
+import com.store.platform.storage.StorageService;
 import com.store.platform.store.dto.DeviceRequest;
 import com.store.platform.store.dto.DeviceResponse;
 import com.store.platform.store.dto.StoreRequest;
@@ -32,6 +33,7 @@ public class StoreService {
     private final DeviceRepository deviceRepository;
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
+    private final StorageService storageService;
 
     @Transactional
     public StoreResponse create(Long clientId, StoreRequest request) {
@@ -47,6 +49,10 @@ public class StoreService {
                 .address(request.address())
                 .businessType(request.businessType())
                 .active(request.active() == null || request.active())
+                .logoUrl(normalize(request.logoUrl()))
+                .primaryColor(normalize(request.primaryColor()))
+                .accentColor(normalize(request.accentColor()))
+                .canvasColor(normalize(request.canvasColor()))
                 .build();
         return StoreResponse.from(storeRepository.save(store));
     }
@@ -101,7 +107,21 @@ public class StoreService {
         store.setAddress(request.address());
         store.setBusinessType(request.businessType());
         if (request.active() != null) store.setActive(request.active());
+        // marca: null = conservar, "" = quitar — igual que el logo del tenant
+        if (request.logoUrl() != null) {
+            String old = store.getLogoUrl();
+            String next = normalize(request.logoUrl());
+            store.setLogoUrl(next);
+            if (old != null && !old.equals(next)) storageService.deleteByUrl(old);
+        }
+        if (request.primaryColor() != null) store.setPrimaryColor(normalize(request.primaryColor()));
+        if (request.accentColor() != null) store.setAccentColor(normalize(request.accentColor()));
+        if (request.canvasColor() != null) store.setCanvasColor(normalize(request.canvasColor()));
         return StoreResponse.from(storeRepository.save(store));
+    }
+
+    private static String normalize(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     public StoreSettingsResponse getSettings(Long id, Long clientId) {

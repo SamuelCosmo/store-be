@@ -26,9 +26,11 @@ public record OrderResponse(
         BigDecimal changeGiven,
         /** Fichas cobradas — solo pagos TOKEN, null en los demás. */
         Integer tokenAmount,
-        /** Nombre del negocio del tenant — encabezado del recibo/ticket. */
+        /** Establecimiento de la orden (menuName gana sobre name) — encabezado del ticket. */
+        String storeName,
+        /** Nombre del negocio del tenant. */
         String clientName,
-        /** Logo del tenant — encabezado del recibo/ticket. */
+        /** Logo del establecimiento; si no tiene, el del tenant. */
         String logoUrl,
         Instant createdAt,
         List<OrderItemResponse> items) {
@@ -55,12 +57,17 @@ public record OrderResponse(
                 order.getCashReceived(),
                 order.getChangeGiven(),
                 order.getTokenAmount(),
+                order.getStore().getMenuName() != null && !order.getStore().getMenuName().isBlank()
+                        ? order.getStore().getMenuName()
+                        : order.getStore().getName(),
                 order.getStore().getClient() == null
                         ? null
                         : order.getStore().getClient().getName(),
-                order.getStore().getClient() == null
-                        ? null
-                        : order.getStore().getClient().getLogoUrl(),
+                order.getStore().getLogoUrl() != null
+                        ? order.getStore().getLogoUrl()
+                        : order.getStore().getClient() == null
+                                ? null
+                                : order.getStore().getClient().getLogoUrl(),
                 order.getCreatedAt(),
                 order.getItems().stream().map(OrderItemResponse::from).toList());
     }

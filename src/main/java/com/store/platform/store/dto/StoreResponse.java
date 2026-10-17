@@ -12,6 +12,11 @@ public record StoreResponse(
         String address,
         Store.BusinessType businessType,
         boolean active,
+        /** Logo y paleta propios del establecimiento — null = hereda del tenant/tema base. */
+        String logoUrl,
+        String primaryColor,
+        String accentColor,
+        String canvasColor,
         Instant createdAt) {
 
     public static StoreResponse from(Store store) {
@@ -23,6 +28,10 @@ public record StoreResponse(
                 store.getAddress(),
                 store.getBusinessType(),
                 store.isActive(),
+                store.getLogoUrl(),
+                store.getPrimaryColor(),
+                store.getAccentColor(),
+                store.getCanvasColor(),
                 store.getCreatedAt());
     }
 }

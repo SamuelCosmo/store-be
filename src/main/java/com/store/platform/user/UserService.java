@@ -169,14 +169,14 @@ public class UserService {
         AuthUser auth = AuthContext.current();
         if (auth.role() == User.Role.ADMIN) {
             return storeRepository.findByClientIdAndDeletedAtIsNull(auth.clientId()).stream()
-                    .map(s -> new StoreOption(s.getId(), s.getName()))
+                    .map(StoreOption::from)
                     .toList();
         }
         User user = userRepository.findById(auth.userId())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
         return user.getStores().stream()
                 .filter(s -> s.getDeletedAt() == null)
-                .map(s -> new StoreOption(s.getId(), s.getName()))
+                .map(StoreOption::from)
                 .toList();
     }
 

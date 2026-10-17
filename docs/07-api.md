@@ -72,7 +72,8 @@ PUT    /api/clients/{id}/settings   # ADMIN
 ```text
 POST   /api/stores              # ligado a un clientId
 GET    /api/stores/{id}
-PUT    /api/stores/{id}         # name, description, address, businessType, active
+PUT    /api/stores/{id}         # name, description, address, businessType, active,
+                              #  logoUrl, primaryColor, accentColor, canvasColor
 GET    /api/clients/{id}/stores # listado por cliente (la lista del admin; ?deleted=true → solo borradas)
 POST   /api/stores/{id}/devices # alta de POS/KIOSK por tienda
 GET    /api/stores/{id}/devices
@@ -83,11 +84,16 @@ POST   /api/stores/{id}/restore    # ADMIN
 ```
 
 - `active` default `true` al dar de alta.
+- **Marca por establecimiento**: `logoUrl` + `primaryColor`, `accentColor`,
+  `canvasColor` (`#rrggbb`). En el PUT un campo ausente se conserva y `""`
+  lo quita; el logo reemplazado se borra del bucket. Los llevan
+  `StoreResponse` y `StoreOption` (`/api/users/me/stores`, `/api/auth/stores`),
+  así las terminales aplican logo + paleta sin otra llamada — el front deriva
+  la variante nocturna a partir de esos colores. Sin marca → tema base /
+  logo del tenant. `OrderResponse`/`TicketResponse` exponen `storeName`
+  (`menuName ?: name`) y `logoUrl = store.logoUrl ?: client.logo_url`.
 - Settings por establecimiento: `{ menuName, kitchenOkMin, kitchenWarnMin,
   kitchenSound }` — `menuName` vacío → se usa el `name` del store.
-  **`menuName` quedó legacy** (sin input en `/settings`): el nombre que se
-  muestra en pantallas y tickets es `clients.name` (Marca); el campo sigue
-  aceptándose por compatibilidad.
 - Settings por cliente: `{ name, logoUrl, currency, taxRate,
   kioskReceiptSeconds, sessionHours, tokenPrice }` — `sessionHours` es
   `{ rol: horas }` (0 = no cerrar). `name`/`logoUrl` son la marca del

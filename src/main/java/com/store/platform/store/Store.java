@@ -38,6 +38,16 @@ public class Store {
     @Builder.Default
     private boolean active = true;
 
+    /** Logo propio del establecimiento (terminales + ticket); null = el del tenant. */
+    private String logoUrl;
+
+    /** Paleta de las terminales — #rrggbb, null = tema base de la plataforma. */
+    private String primaryColor;
+
+    private String accentColor;
+
+    private String canvasColor;
+
     // Per-establishment settings (null = use defaults in StoreSettingsResponse)
     private String menuName;
 

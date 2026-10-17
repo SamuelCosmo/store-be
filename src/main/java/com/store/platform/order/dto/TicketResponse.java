@@ -45,7 +45,7 @@ public record TicketResponse(
         return new TicketResponse(
                 o.id(), o.ticketNumber(), store.getId(), name, store.getAddress(),
                 store.getClient().getName(),
-                store.getClient().getLogoUrl(),
+                store.getLogoUrl() != null ? store.getLogoUrl() : store.getClient().getLogoUrl(),
                 o.userId(), o.channel(), o.orderType(), o.paymentMethod(),
                 o.status(), o.refundStatus(), o.subtotal(), o.taxRate(),
                 o.taxAmount(), o.total(), o.cashReceived(), o.changeGiven(),
