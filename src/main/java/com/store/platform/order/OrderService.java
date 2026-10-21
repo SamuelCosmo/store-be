@@ -71,6 +71,11 @@ public class OrderService {
                 && request.paymentMethod() != Order.PaymentMethod.CARD) {
             throw new BusinessException("Kiosk orders only accept CARD payment");
         }
+        // TODO(bancomer): hoy CARD se da por cobrado sin confirmación — la
+        // orden entra directo a PENDING (cocina). Con la integración de la
+        // terminal Bancomer: crear la orden en PENDING_PAYMENT, mandar el
+        // cobro a la terminal y pasar a PENDING solo al recibir la
+        // aprobación (guardar folio/autorización); rechazo → CANCELLED.
 
         // lock del store: serializa la asignación del folio entre cajas/kioscos
         Store store = storeRepository.findByIdForUpdate(storeId)

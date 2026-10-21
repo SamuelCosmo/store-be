@@ -17,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.store.platform.security.AuthUser;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -45,12 +46,7 @@ public class UserService {
     @Transactional
     public UserResponse create(Long clientId, UserRequest request) {
         requireSelfPassword(request.currentPassword());
-        return createUnchecked(clientId, request);
-    }
-
-    /** Internal bootstrap (DataSeeder) — no caller session exists yet. */
-    @Transactional
-    public UserResponse createUnchecked(Long clientId, UserRequest request) {
+        rejectPlatformRole(request.role());
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found: " + clientId));
         String email = normalizeEmail(request.email());
@@ -85,6 +81,7 @@ public class UserService {
     @Transactional
     public UserResponse update(Long id, UserUpdateRequest request) {
         requireSelfPassword(request.currentPassword());
+        rejectPlatformRole(request.role());
         User user = findOwnedOrThrow(id);
         if (request.role() == User.Role.ADMIN && user.getRole() != User.Role.ADMIN
                 || user.getRole() == User.Role.ADMIN && request.role() != User.Role.ADMIN) {
@@ -97,14 +94,20 @@ public class UserService {
         if (userRepository.existsByEmailIgnoreCaseAndIdNotAndDeletedAtIsNull(email, id)) {
             throw new DuplicateResourceException("Email already registered: " + email);
         }
+        Set<Store> stores = resolveStores(user.getClient().getId(), request.storeIds());
+        boolean newPassword = request.password() != null && !request.password().isBlank();
+        // permisos cambiados → los tokens emitidos ya no los reflejan
+        if (newPassword || user.getRole() != request.role() || !storeIds(user.getStores()).equals(storeIds(stores))) {
+            user.revokeTokens();
+        }
         user.setName(request.name());
         user.setEmail(email);
-        if (request.password() != null && !request.password().isBlank()) {
+        if (newPassword) {
             user.setPassword(passwordEncoder.encode(request.password()));
         }
         user.setRole(request.role());
         user.getStores().clear();
-        user.getStores().addAll(resolveStores(user.getClient().getId(), request.storeIds()));
+        user.getStores().addAll(stores);
         return UserResponse.from(userRepository.save(user));
     }
 
@@ -115,6 +118,7 @@ public class UserService {
         if (!active && user.getId().equals(AuthContext.current().userId())) {
             throw new BusinessException("You cannot deactivate your own account");
         }
+        if (!active) user.revokeTokens();
         user.setActive(active);
         return UserResponse.from(userRepository.save(user));
     }
@@ -127,6 +131,7 @@ public class UserService {
             throw new BusinessException("You cannot delete your own account");
         }
         user.setDeletedAt(Instant.now());
+        user.revokeTokens();
         // email es UNIQUE a nivel DB: se reescribe para liberar el correo y que
         // pueda registrarse de nuevo (la fila queda para el historial de órdenes)
         user.setEmail(user.getEmail() + ".deleted-" + user.getId());
@@ -189,6 +194,14 @@ public class UserService {
         }
     }
 
+    /** SUPERADMIN nunca se crea ni se asigna por API — solo directo en la DB
+     *  (users.client_id NULL). Un tenant que lo asignara tomaría la plataforma. */
+    private static void rejectPlatformRole(User.Role role) {
+        if (role == User.Role.SUPERADMIN) {
+            throw new AccessDeniedException("SUPERADMIN role cannot be assigned");
+        }
+    }
+
     /** User must belong to the caller's client. */
     private User findOwnedOrThrow(Long id) {
         User user = userRepository.findById(id)
@@ -198,6 +211,10 @@ public class UserService {
             throw new ResourceNotFoundException("User not found: " + id);
         }
         return user;
+    }
+
+    private static Set<Long> storeIds(Set<Store> stores) {
+        return stores.stream().map(Store::getId).collect(java.util.stream.Collectors.toSet());
     }
 
     private Set<Store> resolveStores(Long clientId, List<Long> storeIds) {

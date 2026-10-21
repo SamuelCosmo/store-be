@@ -26,9 +26,17 @@ envía como `Authorization: Bearer <jwt>` en cada request autenticada:
   real muere al borrar el token del cliente.
 - `JwtAuthFilter` lee solo el header `Bearer`.
 
-Nota: un usuario desactivado/eliminado con token vigente conserva acceso
-hasta su `exp` — el filtro no consulta la DB por request (mismo alcance
-que `active=false`).
+Revocación: `JwtAuthFilter` consulta el usuario en cada request y responde
+401 (el front cierra sesión) si:
+
+- el usuario fue eliminado o desactivado;
+- `users.token_version` ≠ claim `ver` del JWT — sube al desactivar,
+  eliminar o cambiar rol / contraseña / tiendas asignadas (editar solo
+  nombre/correo no cierra la sesión);
+- el rol del token ya no coincide;
+- el token se emitió (`iat`) hace más horas que las de su rol en
+  Configuración → Sesiones (`clients.session_hours`, 0 = sin límite).
+  SUPERADMIN solo respeta el `exp` (no tiene tenant).
 
 Tras el login, el frontend redirige según el rol del usuario:
 

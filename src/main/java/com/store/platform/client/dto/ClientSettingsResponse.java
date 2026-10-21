@@ -22,6 +22,15 @@ public record ClientSettingsResponse(
             "KITCHEN", 12,
             "CUSTOMER", 24);
 
+    /** Horas de sesión del rol (0 = sin límite) — el valor del tenant o el default. */
+    public static int sessionHoursFor(Client client, String role) {
+        Map<String, Integer> custom = client.getSessionHours();
+        Integer hours = custom != null && custom.get(role) != null
+                ? custom.get(role)
+                : DEFAULT_HOURS.get(role);
+        return hours == null ? 0 : hours;
+    }
+
     public static ClientSettingsResponse from(Client client) {
         return new ClientSettingsResponse(
                 client.getName(),

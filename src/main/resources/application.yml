@@ -22,8 +22,10 @@ app:
     # Orígenes permitidos separados por coma — en prod el dominio del front.
     origins: ${CORS_ORIGINS:http://localhost:3000}
   jwt:
-    # ponytail: dev default, override with JWT_SECRET in real environments
-    secret: ${JWT_SECRET:dev-only-secret-key-change-me-in-production-0123456789abcdef}
+    # Sin default a propósito: si falta JWT_SECRET la app no arranca (nunca
+    # firma con una llave pública). Mínimo 32 bytes — genera uno con:
+    #   openssl rand -base64 48
+    secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:604800000}
   cookie:
     # Solo la usa POST /api/auth/logout para expirar cookies store_token
@@ -41,9 +43,6 @@ app:
   logs:
     # días que se conservan en app_logs (pantalla de SUPERADMIN); purga diaria 04:15
     retention-days: ${LOG_RETENTION_DAYS:30}
-  seed:
-    # Datos de prueba (client_test). false en producción.
-    dev-data: ${SEED_DEV_DATA:true}
 
 logging:
   pattern:

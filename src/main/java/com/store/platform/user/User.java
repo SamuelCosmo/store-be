@@ -56,6 +56,16 @@ public class User {
     /** Soft delete: row stays for order history; hidden from all listings. */
     private Instant deletedAt;
 
+    /** Viaja en el JWT (claim `ver`). Subirla invalida todos los tokens
+     *  emitidos antes — desactivar, borrar, cambiar rol/contraseña/tiendas. */
+    @Column(nullable = false, columnDefinition = "integer not null default 0")
+    @Builder.Default
+    private int tokenVersion = 0;
+
+    public void revokeTokens() {
+        tokenVersion++;
+    }
+
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 

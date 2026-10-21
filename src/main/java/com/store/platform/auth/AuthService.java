@@ -79,7 +79,8 @@ public class AuthService {
     @Transactional(readOnly = true)
     public AuthResponse loginSuperadmin(LoginRequest request) {
         User user = authenticate(request);
-        if (user.getRole() != User.Role.SUPERADMIN) {
+        // cuenta de plataforma = rol SUPERADMIN *y* sin tenant (inyectada en DB)
+        if (user.getRole() != User.Role.SUPERADMIN || user.getClient() != null) {
             log.warn("Superadmin login rejected: not superadmin userId={}", user.getId());
             throw new BadCredentialsException("Invalid credentials");
         }

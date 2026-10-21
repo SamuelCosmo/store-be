@@ -155,8 +155,9 @@ ticket) sobreviva.
   (`order_items` es snapshot; `findById` no filtra `deleted_at` — solo lo
   hacen las listas y los guards del service).
 - Login bloqueado para usuarios borrados (`findByEmail…​AndDeletedAtIsNull`);
-  su JWT vigente sigue válido hasta `exp` (el filtro no consulta la DB —
-  mismo alcance que `active=false`).
+  su JWT vigente deja de servir al instante (`JwtAuthFilter` revisa
+  `deleted_at`, `active` y `token_version` por request — ver
+  `02-authentication.md`).
 - Los listados aceptan `?deleted=true` (solo borrados) y cada recurso expone
   `POST /{id}/restore` que limpia la marca (en `users` además restaura el
   email original quitando el sufijo `.deleted-{id}` — 409 si ya se re-usó).

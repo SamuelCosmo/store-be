@@ -29,6 +29,7 @@ public class JwtService {
                 .subject(String.valueOf(user.getId()))
                 .claim("email", user.getEmail())
                 .claim("role", user.getRole().name())
+                .claim("ver", user.getTokenVersion())
                 .issuedAt(Date.from(Instant.now()))
                 .expiration(Date.from(Instant.now().plusMillis(expirationMs)))
                 .signWith(key);
@@ -42,16 +43,22 @@ public class JwtService {
         return builder.compact();
     }
 
-    public AuthUser parse(String token) {
+    /** Firma válida + claims; si sigue vigente lo decide JwtAuthFilter contra la DB. */
+    public record Parsed(AuthUser user, int version, Instant issuedAt) {
+    }
+
+    public Parsed parse(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
-        return new AuthUser(
+        AuthUser user = new AuthUser(
                 Long.valueOf(claims.getSubject()),
                 claims.get("clientId", Long.class),
                 claims.get("storeId", Long.class),
                 User.Role.valueOf(claims.get("role", String.class)));
+        Integer ver = claims.get("ver", Integer.class);
+        return new Parsed(user, ver == null ? 0 : ver, claims.getIssuedAt().toInstant());
     }
 }

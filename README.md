@@ -27,7 +27,9 @@ Documentación del happy path en [`docs/`](docs/README.md).
    `categories`/`products`).
 6. Errores: lanza las excepciones de `common/exception` — el
    `GlobalExceptionHandler` las convierte en `ErrorResponse`.
-7. `DataSeeder` carga datos de desarrollo al arrancar.
+7. Sin datos semilla: el SUPERADMIN se inserta directo en la DB
+   (`users.role = 'SUPERADMIN'`, `client_id = NULL`) y desde `/superadmin`
+   se crean los tenants con su ADMIN. Ninguna API asigna el rol SUPERADMIN.
 
 ## Requisitos
 
@@ -46,7 +48,11 @@ PostgreSQL queda en `localhost:5433` — db `storedb`, user `store`, password `s
 
 ## Ejecutar la aplicación
 
+`JWT_SECRET` es obligatorio (sin él la app no arranca). Genera uno propio
+por entorno — nunca lo subas al repo:
+
 ```bash
+export JWT_SECRET="$(openssl rand -base64 48)"
 ./mvnw spring-boot:run
 ```
 

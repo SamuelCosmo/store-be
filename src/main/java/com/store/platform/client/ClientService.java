@@ -136,6 +136,7 @@ public class ClientService {
         admin.setEmail(email);
         if (request.adminPassword() != null && !request.adminPassword().isBlank()) {
             admin.setPassword(passwordEncoder.encode(request.adminPassword()));
+            admin.revokeTokens();
         }
         return ClientAdminResponse.from(userRepository.save(admin));
     }
