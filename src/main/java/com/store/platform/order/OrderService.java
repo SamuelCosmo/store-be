@@ -58,8 +58,14 @@ public class OrderService {
     private final InventoryService inventoryService;
     private final StoreService storeService;
 
+    private static final java.util.regex.Pattern IDEMPOTENCY_KEY =
+            java.util.regex.Pattern.compile("[A-Za-z0-9-]{8,64}");
+
     @Transactional
-    public OrderResponse create(OrderRequest request) {
+    public OrderResponse create(OrderRequest request, String idempotencyKey) {
+        if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
+            throw new BusinessException("Invalid Idempotency-Key");
+        }
         AuthUser auth = AuthContext.current();
         // tienda explícita (selector multi-tienda del POS) o la de sesión
         Long storeId = storeService.resolveScope(request.storeId());
@@ -80,6 +86,12 @@ public class OrderService {
         // lock del store: serializa la asignación del folio entre cajas/kioscos
         Store store = storeRepository.findByIdForUpdate(storeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Store not found: " + storeId));
+        // reintento del mismo cobro: con el lock del store ya tomado, dos
+        // requests con el mismo key no pueden crear dos órdenes
+        if (idempotencyKey != null) {
+            var existing = orderRepository.findByStoreIdAndIdempotencyKey(storeId, idempotencyKey);
+            if (existing.isPresent()) return OrderResponse.from(existing.get());
+        }
 
         Set<Long> productIds = request.items().stream()
                 .map(OrderItemRequest::productId)
@@ -103,6 +115,7 @@ public class OrderService {
                 .paymentMethod(request.paymentMethod())
                 .status(Order.Status.PENDING)
                 .refundStatus(Order.RefundStatus.NONE)
+                .idempotencyKey(idempotencyKey)
                 .total(BigDecimal.ZERO)
                 .build();
 
@@ -192,15 +205,15 @@ public class OrderService {
         }
         // folio semanal consecutivo — con el lock del store no hay duplicados
         order.setTicketNumber(
-                orderRepository.maxTicketNumberSince(storeId, weekStart()) + 1);
+                orderRepository.maxTicketNumberSince(storeId, weekStart(store.getClient().zone())) + 1);
         return OrderResponse.from(orderRepository.save(order));
     }
 
-    /** Lunes 00:00 de la semana actual (timezone del servidor). */
-    private Instant weekStart() {
-        return LocalDate.now()
+    /** Lunes 00:00 de la semana actual en la zona del negocio (no la del server). */
+    private Instant weekStart(ZoneId zone) {
+        return LocalDate.now(zone)
                 .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                .atStartOfDay(ZoneId.systemDefault())
+                .atStartOfDay(zone)
                 .toInstant();
     }
 

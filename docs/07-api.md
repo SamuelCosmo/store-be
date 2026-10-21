@@ -94,9 +94,16 @@ POST   /api/stores/{id}/restore    # ADMIN
   (`menuName ?: name`) y `logoUrl = store.logoUrl ?: client.logo_url`.
 - Settings por establecimiento: `{ menuName, kitchenOkMin, kitchenWarnMin,
   kitchenSound }` — `menuName` vacío → se usa el `name` del store.
+  Validación: minutos 1–240, `menuName` ≤ 60, y `kitchenWarnMin >
+  kitchenOkMin` sobre el valor resultante (400 si no).
 - Settings por cliente: `{ name, logoUrl, currency, taxRate,
-  kioskReceiptSeconds, sessionHours, tokenPrice }` — `sessionHours` es
-  `{ rol: horas }` (0 = no cerrar). `name`/`logoUrl` son la marca del
+  kioskReceiptSeconds, sessionHours, tokenPrice, timezone }` — `sessionHours` es
+  `{ rol: horas }` (0 = no cerrar). Validación (400): `currency` ISO 4217
+  real, `taxRate` 0–100, `tokenPrice` ≥ 0, `kioskReceiptSeconds` 3–60,
+  `sessionHours` solo roles del tenant y 0–720 h, `timezone` zona IANA.
+  `timezone` (default `America/Mexico_City`) define el "hoy" del
+  dashboard y de `/api/tokens`, la hora de la gráfica por hora y el lunes
+  en que reinicia el folio semanal — el server corre en UTC. `name`/`logoUrl` son la marca del
   tenant: `name` vacío se ignora, `logoUrl: ""` quita el logo; la
   imagen se sube con `POST /api/uploads/brand` (solo ADMIN, guarda en
   `clients/{id}/brand/` del bucket). `AuthResponse` también trae
@@ -220,14 +227,22 @@ PUT    /api/inventory/{productId}
 ## Orders ✅ *(parcial)*
 
 ```text
-POST   /api/orders
-GET    /api/orders              # ?storeId=&status=&page=&size=&sort= (página para historial; array para KDS)
-GET    /api/orders/{id}
-GET    /api/orders/{id}/ticket   # OrderResponse + storeName (menuName ?: name)
-                               #  + storeAddress — payload autocontenido para
-                               #  imprimir/reimprimir; cualquier rol (kiosco incl.)
+POST   /api/orders              # ADMIN/MANAGER/EMPLOYEE/CUSTOMER (cocina no vende)
+                               #  header opcional Idempotency-Key ([A-Za-z0-9-]{8,64})
+GET    /api/orders              # staff (no CUSTOMER) — ?storeId=&status=&page=&size=&sort=
+                               #  (página para historial; array para KDS)
+GET    /api/orders/{id}         # staff
+GET    /api/orders/{id}/ticket   # staff — OrderResponse + storeName (menuName ?: name)
+                               #  + storeAddress — payload autocontenido para reimprimir.
+                               #  El kiosco arma su ticket con la respuesta del POST.
 PATCH  /api/orders/{id}/status
 ```
+
+**Idempotency-Key:** un id por cobro. Reintentar `POST /api/orders` con el
+mismo key en la misma tienda devuelve la orden ya creada (sin descontar
+inventario de nuevo) en vez de duplicarla — cubre el caso "se cortó la red
+justo después de cobrar". El front genera uno nuevo cada vez que cambia el
+carrito. Unique `(store_id, idempotency_key)`.
 
 ### OrderRequest
 

@@ -98,7 +98,7 @@ public class ClientController {
     @PutMapping("/{id}/settings")
     @PreAuthorize("hasRole('ADMIN')")
     public ClientSettingsResponse updateSettings(@PathVariable Long id,
-                                                 @RequestBody ClientSettingsRequest request) {
+                                                 @Valid @RequestBody ClientSettingsRequest request) {
         requireOwnClient(id);
         return clientService.updateSettings(id, request);
     }

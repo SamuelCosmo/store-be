@@ -89,6 +89,12 @@ public class StoreService {
         if (!store.getClient().getId().equals(clientId)) {
             throw new AccessDeniedException("Store does not belong to your client");
         }
+        // mismo tope que create — si no, borrar/crear/restaurar evade el plan
+        int max = store.getClient().getMaxStores();
+        if (store.getDeletedAt() != null
+                && storeRepository.countByClientIdAndDeletedAtIsNull(clientId) >= max) {
+            throw new BusinessException("Store limit reached for this plan (" + max + ")");
+        }
         store.setDeletedAt(null);
         return StoreResponse.from(storeRepository.save(store));
     }
@@ -136,6 +142,12 @@ public class StoreService {
                 ? request.menuName().trim() : null);
         if (request.kitchenOkMin() != null) store.setKitchenOkMin(request.kitchenOkMin());
         if (request.kitchenWarnMin() != null) store.setKitchenWarnMin(request.kitchenWarnMin());
+        // mismos defaults que StoreSettingsResponse (8/15) si la columna es null
+        int ok = store.getKitchenOkMin() != null ? store.getKitchenOkMin() : 8;
+        int warn = store.getKitchenWarnMin() != null ? store.getKitchenWarnMin() : 15;
+        if (warn <= ok) {
+            throw new BusinessException("kitchenWarnMin must be greater than kitchenOkMin");
+        }
         if (request.kitchenSound() != null) store.setKitchenSound(request.kitchenSound());
         return StoreSettingsResponse.from(storeRepository.save(store));
     }

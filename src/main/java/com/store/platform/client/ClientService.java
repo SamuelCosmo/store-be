@@ -105,13 +105,39 @@ public class ClientService {
             // el logo reemplazado/quitrado queda huérfano en el bucket
             if (old != null && !old.equals(next)) storageService.deleteByUrl(old);
         }
-        if (request.currency() != null) client.setCurrency(request.currency());
+        if (request.currency() != null) {
+            // una moneda que Intl.NumberFormat no conoce tumba el POS completo
+            try {
+                java.util.Currency.getInstance(request.currency());
+            } catch (IllegalArgumentException e) {
+                throw new BusinessException("Unknown currency: " + request.currency());
+            }
+            client.setCurrency(request.currency());
+        }
         if (request.taxRate() != null) client.setTaxRate(request.taxRate());
         if (request.tokenPrice() != null) client.setTokenPrice(request.tokenPrice());
         if (request.kioskReceiptSeconds() != null) client.setKioskReceiptSeconds(request.kioskReceiptSeconds());
-        if (request.sessionHours() != null) client.setSessionHours(request.sessionHours());
+        if (request.sessionHours() != null) {
+            request.sessionHours().forEach((role, hours) -> {
+                if (!TENANT_ROLES.contains(role) || hours == null) {
+                    throw new BusinessException("Invalid session hours for role: " + role);
+                }
+            });
+            client.setSessionHours(request.sessionHours());
+        }
+        if (request.timezone() != null) {
+            try {
+                java.time.ZoneId.of(request.timezone());
+            } catch (java.time.DateTimeException e) {
+                throw new BusinessException("Unknown timezone: " + request.timezone());
+            }
+            client.setTimezone(request.timezone());
+        }
         return ClientSettingsResponse.from(clientRepository.save(client));
     }
+
+    private static final java.util.Set<String> TENANT_ROLES =
+            java.util.Set.of("ADMIN", "MANAGER", "EMPLOYEE", "KITCHEN", "CUSTOMER");
 
     /** Plataforma: datos del admin del tenant (para el modal de edición). */
     public ClientAdminResponse getAdmin(Long id) {

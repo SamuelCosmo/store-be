@@ -1,5 +1,6 @@
 package com.store.platform.report;
 
+import com.store.platform.client.ClientService;
 import com.store.platform.order.Order;
 import com.store.platform.order.OrderItem;
 import com.store.platform.order.OrderRepository;
@@ -35,14 +36,17 @@ public class ReportService {
 
     private final OrderRepository orderRepository;
     private final StoreService storeService;
+    private final ClientService clientService;
 
     @Transactional(readOnly = true)
     public DashboardResponse dashboard(Long storeId, LocalDate from, LocalDate to, int top) {
         AuthUser auth = AuthContext.current();
-        LocalDate toDate = to == null ? LocalDate.now() : to;
+        // "hoy" y los cortes de día/hora en la zona del negocio, no la del server
+        ZoneId zone = clientService.findOrThrow(auth.clientId()).zone();
+        LocalDate toDate = to == null ? LocalDate.now(zone) : to;
         LocalDate fromDate = from == null ? toDate : from;
-        Instant start = fromDate.atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant end = toDate.plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        Instant start = fromDate.atStartOfDay(zone).toInstant();
+        Instant end = toDate.plusDays(1).atStartOfDay(zone).toInstant();
 
         List<Order> orders;
         if (storeId != null || auth.storeId() != null) {
@@ -87,7 +91,7 @@ public class ReportService {
                 slices(sold, Order::getChannel),
                 slices(sold, Order::getOrderType),
                 slices(sold, Order::getPaymentMethod),
-                hourly(sold),
+                hourly(sold, zone),
                 topProducts(sold, top),
                 byEmployee(sold),
                 onTime,
@@ -103,10 +107,10 @@ public class ReportService {
                 .toList();
     }
 
-    private List<HourlyPoint> hourly(List<Order> orders) {
+    private List<HourlyPoint> hourly(List<Order> orders, ZoneId zone) {
         Map<Integer, BigDecimal> byHour = new TreeMap<>();
         for (Order o : orders) {
-            int hour = o.getCreatedAt().atZone(ZoneId.systemDefault()).getHour();
+            int hour = o.getCreatedAt().atZone(zone).getHour();
             byHour.merge(hour, o.getTotal(), BigDecimal::add);
         }
         return byHour.entrySet().stream()

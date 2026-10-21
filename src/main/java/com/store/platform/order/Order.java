@@ -11,7 +11,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "orders")
+@Table(name = "orders", uniqueConstraints = @UniqueConstraint(
+        name = "uk_orders_store_idempotency", columnNames = { "store_id", "idempotency_key" }))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -76,6 +77,11 @@ public class Order {
 
     /** Fichas cobradas — solo pagos TOKEN (el dinero se registró al venderlas). */
     private Integer tokenAmount;
+
+    /** Header Idempotency-Key del cobro — un reintento con el mismo key
+     *  devuelve esta orden en vez de crear otra. Null en órdenes viejas. */
+    @Column(length = 64)
+    private String idempotencyKey;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default

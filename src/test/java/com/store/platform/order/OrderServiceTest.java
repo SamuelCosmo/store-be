@@ -75,7 +75,7 @@ class OrderServiceTest {
         OrderRequest request = new OrderRequest(Order.Channel.KIOSK, Order.OrderType.DINE_IN,
                 Order.PaymentMethod.CASH, null, null,
                 List.of(new OrderItemRequest(1L, 1, null, null, null)));
-        assertThrows(BusinessException.class, () -> orderService.create(request));
+        assertThrows(BusinessException.class, () -> orderService.create(request, null));
         verifyNoInteractions(orderRepository);
     }
 
@@ -85,7 +85,7 @@ class OrderServiceTest {
         OrderRequest request = new OrderRequest(Order.Channel.POS, Order.OrderType.TAKEAWAY,
                 Order.PaymentMethod.CARD, null, null,
                 List.of(new OrderItemRequest(1L, 1, null, null, null)));
-        assertThrows(BusinessException.class, () -> orderService.create(request));
+        assertThrows(BusinessException.class, () -> orderService.create(request, null));
         verifyNoInteractions(orderRepository);
     }
 
@@ -104,7 +104,7 @@ class OrderServiceTest {
                 List.of(new OrderItemRequest(1L, 1, null, null, null),
                         new OrderItemRequest(1L, 2, null, null, null)));
 
-        OrderResponse response = orderService.create(request);
+        OrderResponse response = orderService.create(request, null);
 
         assertEquals(new BigDecimal("10.50"), response.subtotal());
         assertEquals(new BigDecimal("10.50"), response.total());
@@ -112,6 +112,40 @@ class OrderServiceTest {
         assertEquals(2, response.items().size());
         verify(inventoryService).decrease(product, 1);
         verify(inventoryService).decrease(product, 2);
+    }
+
+    @Test
+    void retryWithSameIdempotencyKeyReturnsExistingOrder() {
+        authenticate(User.Role.EMPLOYEE);
+        Order existing = Order.builder()
+                .id(40L).store(store).user(User.builder().id(7L).build())
+                .channel(Order.Channel.POS).orderType(Order.OrderType.DINE_IN)
+                .paymentMethod(Order.PaymentMethod.CASH).status(Order.Status.PENDING)
+                .refundStatus(Order.RefundStatus.NONE).total(BigDecimal.TEN)
+                .idempotencyKey("pay-key-123").build();
+        when(storeService.resolveScope(null)).thenReturn(1L);
+        when(storeRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(store));
+        when(orderRepository.findByStoreIdAndIdempotencyKey(1L, "pay-key-123"))
+                .thenReturn(Optional.of(existing));
+
+        OrderRequest request = new OrderRequest(Order.Channel.POS, Order.OrderType.DINE_IN,
+                Order.PaymentMethod.CASH, null, null,
+                List.of(new OrderItemRequest(1L, 1, null, null, null)));
+        OrderResponse response = orderService.create(request, "pay-key-123");
+
+        assertEquals(40L, response.id());
+        verify(orderRepository, never()).save(any());
+        verifyNoInteractions(inventoryService);
+    }
+
+    @Test
+    void invalidIdempotencyKeyIsRejected() {
+        authenticate(User.Role.EMPLOYEE);
+        OrderRequest request = new OrderRequest(Order.Channel.POS, Order.OrderType.DINE_IN,
+                Order.PaymentMethod.CASH, null, null,
+                List.of(new OrderItemRequest(1L, 1, null, null, null)));
+        assertThrows(BusinessException.class, () -> orderService.create(request, "bad key!"));
+        verifyNoInteractions(orderRepository);
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.store.platform.token;
 
+import com.store.platform.client.ClientService;
 import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.ResourceNotFoundException;
 import com.store.platform.order.Order;
@@ -29,6 +30,7 @@ public class TokenService {
     private final StoreRepository storeRepository;
     private final UserRepository userRepository;
     private final StoreService storeService;
+    private final ClientService clientService;
 
     /** Venta de fichas en caja: cobra quantity × tokenPrice (snapshot del
      *  cliente) por CASH/CARD. El canje NO pasa por aquí — es una orden con
@@ -62,10 +64,12 @@ public class TokenService {
     @Transactional(readOnly = true)
     public List<TokenSaleResponse> list(Long storeId, LocalDate from, LocalDate to) {
         AuthUser auth = AuthContext.current();
-        Instant start = (from == null ? LocalDate.now() : from)
-                .atStartOfDay(ZoneId.systemDefault()).toInstant();
-        Instant end = (to == null ? LocalDate.now() : to)
-                .plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant();
+        // "hoy" en la zona del negocio — el server corre en UTC
+        ZoneId zone = clientService.findOrThrow(auth.clientId()).zone();
+        Instant start = (from == null ? LocalDate.now(zone) : from)
+                .atStartOfDay(zone).toInstant();
+        Instant end = (to == null ? LocalDate.now(zone) : to)
+                .plusDays(1).atStartOfDay(zone).toInstant();
         if (storeId == null && auth.storeId() == null && auth.role() == com.store.platform.user.User.Role.ADMIN) {
             return tokenSaleRepository
                     .findByStoreClientIdAndCreatedAtBetweenOrderByCreatedAtDesc(auth.clientId(), start, end)

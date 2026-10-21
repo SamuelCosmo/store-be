@@ -7,6 +7,7 @@ import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.Map;
 
 @Entity
@@ -54,6 +55,17 @@ public class Client {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private Map<String, Integer> sessionHours;
+
+    /** Zona IANA del negocio (ej. America/Mexico_City) — define el "hoy" de
+     *  reportes/fichas y el lunes del folio semanal. El server corre en UTC. */
+    @Column(length = 64)
+    private String timezone;
+
+    public static final String DEFAULT_TIMEZONE = "America/Mexico_City";
+
+    public ZoneId zone() {
+        return ZoneId.of(timezone != null ? timezone : DEFAULT_TIMEZONE);
+    }
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;

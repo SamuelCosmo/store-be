@@ -13,7 +13,9 @@ public record ClientSettingsResponse(
         /** Precio de venta de una ficha — 0 = módulo fichas desactivado. */
         BigDecimal tokenPrice,
         int kioskReceiptSeconds,
-        Map<String, Integer> sessionHours) {
+        Map<String, Integer> sessionHours,
+        /** Zona IANA del negocio — default America/Mexico_City. */
+        String timezone) {
 
     private static final Map<String, Integer> DEFAULT_HOURS = Map.of(
             "ADMIN", 12,
@@ -39,6 +41,7 @@ public record ClientSettingsResponse(
                 client.getTaxRate() != null ? client.getTaxRate() : BigDecimal.ZERO,
                 client.getTokenPrice() != null ? client.getTokenPrice() : BigDecimal.ZERO,
                 client.getKioskReceiptSeconds() != null ? client.getKioskReceiptSeconds() : 10,
-                client.getSessionHours() != null ? client.getSessionHours() : DEFAULT_HOURS);
+                client.getSessionHours() != null ? client.getSessionHours() : DEFAULT_HOURS,
+                client.zone().getId());
     }
 }

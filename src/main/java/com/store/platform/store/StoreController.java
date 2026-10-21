@@ -62,7 +62,7 @@ public class StoreController {
     @PutMapping("/{id}/settings")
     @PreAuthorize("hasRole('ADMIN')")
     public StoreSettingsResponse updateSettings(@PathVariable Long id,
-                                                @RequestBody StoreSettingsRequest request) {
+                                                @Valid @RequestBody StoreSettingsRequest request) {
         return storeService.updateSettings(id, request, AuthContext.current().clientId());
     }
 
