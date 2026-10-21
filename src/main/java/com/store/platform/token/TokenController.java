@@ -23,8 +23,10 @@ public class TokenController {
     /** Venta de fichas — solo caja (staff con tienda activa), nunca kiosco. */
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
-    public ResponseEntity<TokenSaleResponse> purchase(@Valid @RequestBody TokenSaleRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(tokenService.purchase(request));
+    public ResponseEntity<TokenSaleResponse> purchase(
+            @Valid @RequestBody TokenSaleRequest request,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(tokenService.purchase(request, idempotencyKey));
     }
 
     @GetMapping

@@ -18,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.HashMap;
 import java.util.Map;
 
+/** Cada error lleva `code` (ver ErrorResponse) — el front traduce con él. */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -26,19 +27,25 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleNotFound(ResourceNotFoundException ex,
                                                         HttpServletRequest request) {
-        return build(HttpStatus.NOT_FOUND, ex.getMessage(), request);
+        return build(HttpStatus.NOT_FOUND, "NOT_FOUND", ex.getMessage(), Map.of(), request);
     }
 
     @ExceptionHandler({DuplicateResourceException.class, InsufficientStockException.class})
-    public ResponseEntity<ErrorResponse> handleConflict(RuntimeException ex,
+    public ResponseEntity<ErrorResponse> handleConflict(BusinessException ex,
                                                         HttpServletRequest request) {
-        return build(HttpStatus.CONFLICT, ex.getMessage(), request);
+        return build(HttpStatus.CONFLICT, ex.getCode(), ex.getMessage(), ex.getParams(), request);
+    }
+
+    /** Otro usuario cambió el mismo registro al mismo tiempo (@Version). */
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleConcurrent(Exception ex, HttpServletRequest request) {
+        return build(HttpStatus.CONFLICT, "CONCURRENT_UPDATE", "Concurrent update", Map.of(), request);
     }
 
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException ex,
                                                         HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+        return build(HttpStatus.BAD_REQUEST, ex.getCode(), ex.getMessage(), ex.getParams(), request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -51,6 +58,7 @@ public class GlobalExceptionHandler {
         ErrorResponse body = ErrorResponse.of(
                 HttpStatus.BAD_REQUEST.value(),
                 HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                "VALIDATION",
                 "Validation failed",
                 request.getRequestURI(),
                 fieldErrors);
@@ -60,19 +68,21 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex,
                                                           HttpServletRequest request) {
-        return build(HttpStatus.BAD_REQUEST, "Malformed request body", request);
+        return build(HttpStatus.BAD_REQUEST, "VALIDATION", "Malformed request body", Map.of(), request);
     }
 
+    /** Contraseña equivocada (login o re-confirmación) — NO es sesión
+     *  vencida: el front no debe cerrar sesión por este 401. */
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ErrorResponse> handleAuth(AuthenticationException ex,
                                                     HttpServletRequest request) {
-        return build(HttpStatus.UNAUTHORIZED, "Invalid credentials", request);
+        return build(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Invalid credentials", Map.of(), request);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleDenied(AccessDeniedException ex,
                                                       HttpServletRequest request) {
-        return build(HttpStatus.FORBIDDEN, "Access denied", request);
+        return build(HttpStatus.FORBIDDEN, "FORBIDDEN", "Access denied", Map.of(), request);
     }
 
     /** Respeta el status propio de ResponseStatusException — el handler
@@ -82,19 +92,19 @@ public class GlobalExceptionHandler {
                                                               HttpServletRequest request) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
         String message = ex.getReason() != null ? ex.getReason() : status.getReasonPhrase();
-        return build(status, message, request);
+        return build(status, null, message, Map.of(), request);
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex,
                                                        HttpServletRequest request) {
         log.error("Unhandled error on {} {}", request.getMethod(), request.getRequestURI(), ex);
-        return build(HttpStatus.INTERNAL_SERVER_ERROR, "Unexpected error", request);
+        return build(HttpStatus.INTERNAL_SERVER_ERROR, "SERVER_ERROR", "Unexpected error", Map.of(), request);
     }
 
-    private ResponseEntity<ErrorResponse> build(HttpStatus status, String message,
-                                                HttpServletRequest request) {
+    private ResponseEntity<ErrorResponse> build(HttpStatus status, String code, String message,
+                                                Map<String, Object> params, HttpServletRequest request) {
         return ResponseEntity.status(status).body(ErrorResponse.of(
-                status.value(), status.getReasonPhrase(), message, request.getRequestURI()));
+                status.value(), status.getReasonPhrase(), code, message, params, request.getRequestURI()));
     }
 }

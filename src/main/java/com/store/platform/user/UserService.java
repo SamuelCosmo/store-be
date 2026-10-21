@@ -51,7 +51,8 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found: " + clientId));
         String email = normalizeEmail(request.email());
         if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
-            throw new DuplicateResourceException("Email already registered: " + email);
+            throw new DuplicateResourceException("EMAIL_TAKEN", "Email already registered: " + email,
+                    java.util.Map.of("email", email));
         }
         User user = User.builder()
                 .client(client)
@@ -87,12 +88,13 @@ public class UserService {
                 || user.getRole() == User.Role.ADMIN && request.role() != User.Role.ADMIN) {
             // changing admin status is allowed, but never on yourself
             if (user.getId().equals(AuthContext.current().userId())) {
-                throw new BusinessException("You cannot change your own role");
+                throw new BusinessException("SELF_ROLE_CHANGE", "You cannot change your own role");
             }
         }
         String email = normalizeEmail(request.email());
         if (userRepository.existsByEmailIgnoreCaseAndIdNotAndDeletedAtIsNull(email, id)) {
-            throw new DuplicateResourceException("Email already registered: " + email);
+            throw new DuplicateResourceException("EMAIL_TAKEN", "Email already registered: " + email,
+                    java.util.Map.of("email", email));
         }
         Set<Store> stores = resolveStores(user.getClient().getId(), request.storeIds());
         boolean newPassword = request.password() != null && !request.password().isBlank();
@@ -116,7 +118,7 @@ public class UserService {
         requireSelfPassword(request.currentPassword());
         User user = findOwnedOrThrow(id);
         if (!active && user.getId().equals(AuthContext.current().userId())) {
-            throw new BusinessException("You cannot deactivate your own account");
+            throw new BusinessException("SELF_DEACTIVATE", "You cannot deactivate your own account");
         }
         if (!active) user.revokeTokens();
         user.setActive(active);
@@ -128,7 +130,7 @@ public class UserService {
         requireSelfPassword(request.currentPassword());
         User user = findOwnedOrThrow(id);
         if (user.getId().equals(AuthContext.current().userId())) {
-            throw new BusinessException("You cannot delete your own account");
+            throw new BusinessException("SELF_DELETE", "You cannot delete your own account");
         }
         user.setDeletedAt(Instant.now());
         user.revokeTokens();
@@ -160,7 +162,8 @@ public class UserService {
                 ? user.getEmail().substring(0, user.getEmail().length() - suffix.length())
                 : user.getEmail();
         if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
-            throw new DuplicateResourceException("Email already registered: " + email);
+            throw new DuplicateResourceException("EMAIL_TAKEN", "Email already registered: " + email,
+                    java.util.Map.of("email", email));
         }
         user.setEmail(email);
         user.setDeletedAt(null);
@@ -227,7 +230,7 @@ public class UserService {
         }
         for (Store store : stores) {
             if (!store.getClient().getId().equals(clientId)) {
-                throw new BusinessException("Store " + store.getId() + " does not belong to this client");
+                throw new BusinessException("STORE_OTHER_CLIENT", "Store " + store.getId() + " does not belong to this client");
             }
         }
         return stores;

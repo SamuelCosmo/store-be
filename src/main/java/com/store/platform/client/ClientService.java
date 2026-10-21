@@ -51,11 +51,12 @@ public class ClientService {
      *  commit (si falla, no queda un cliente sin forma de entrar). */
     private void createAdmin(Client client, ClientRequest request) {
         if (request.adminPassword() == null || request.adminPassword().isBlank()) {
-            throw new BusinessException("adminPassword required to create the client's admin");
+            throw new BusinessException("ADMIN_PASSWORD_REQUIRED", "adminPassword required to create the client's admin");
         }
         String email = UserService.normalizeEmail(request.adminEmail());
         if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
-            throw new DuplicateResourceException("Email already registered: " + email);
+            throw new DuplicateResourceException("EMAIL_TAKEN", "Email already registered: " + email,
+                    java.util.Map.of("email", email));
         }
         userRepository.save(User.builder()
                 .client(client)
@@ -110,7 +111,8 @@ public class ClientService {
             try {
                 java.util.Currency.getInstance(request.currency());
             } catch (IllegalArgumentException e) {
-                throw new BusinessException("Unknown currency: " + request.currency());
+                throw new BusinessException("INVALID_CURRENCY", "Unknown currency: " + request.currency(),
+                        java.util.Map.of("currency", request.currency()));
             }
             client.setCurrency(request.currency());
         }
@@ -120,7 +122,7 @@ public class ClientService {
         if (request.sessionHours() != null) {
             request.sessionHours().forEach((role, hours) -> {
                 if (!TENANT_ROLES.contains(role) || hours == null) {
-                    throw new BusinessException("Invalid session hours for role: " + role);
+                    throw new BusinessException("INVALID_SESSION_ROLE", "Invalid session hours for role: " + role);
                 }
             });
             client.setSessionHours(request.sessionHours());
@@ -129,7 +131,7 @@ public class ClientService {
             try {
                 java.time.ZoneId.of(request.timezone());
             } catch (java.time.DateTimeException e) {
-                throw new BusinessException("Unknown timezone: " + request.timezone());
+                throw new BusinessException("INVALID_TIMEZONE", "Unknown timezone: " + request.timezone());
             }
             client.setTimezone(request.timezone());
         }
@@ -156,7 +158,8 @@ public class ClientService {
         User admin = adminOf(id);
         String email = UserService.normalizeEmail(request.adminEmail());
         if (userRepository.existsByEmailIgnoreCaseAndIdNotAndDeletedAtIsNull(email, admin.getId())) {
-            throw new DuplicateResourceException("Email already registered: " + email);
+            throw new DuplicateResourceException("EMAIL_TAKEN", "Email already registered: " + email,
+                    java.util.Map.of("email", email));
         }
         admin.setName(request.adminName().trim());
         admin.setEmail(email);

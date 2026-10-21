@@ -59,24 +59,19 @@ public class OrderService {
     private final InventoryService inventoryService;
     private final StoreService storeService;
 
-    private static final java.util.regex.Pattern IDEMPOTENCY_KEY =
-            java.util.regex.Pattern.compile("[A-Za-z0-9-]{8,64}");
-
     @Transactional
     public OrderResponse create(OrderRequest request, String idempotencyKey) {
-        if (idempotencyKey != null && !IDEMPOTENCY_KEY.matcher(idempotencyKey).matches()) {
-            throw new BusinessException("Invalid Idempotency-Key");
-        }
+        com.store.platform.common.Idempotency.check(idempotencyKey);
         AuthUser auth = AuthContext.current();
         // tienda explícita (selector multi-tienda del POS) o la de sesión
         Long storeId = storeService.resolveScope(request.storeId());
 
         if (auth.role() == User.Role.CUSTOMER && request.channel() != Order.Channel.KIOSK) {
-            throw new BusinessException("Customer accounts can only create KIOSK orders");
+            throw new BusinessException("CUSTOMER_KIOSK_ONLY", "Customer accounts can only create KIOSK orders");
         }
         if (request.channel() == Order.Channel.KIOSK
                 && request.paymentMethod() != Order.PaymentMethod.CARD) {
-            throw new BusinessException("Kiosk orders only accept CARD payment");
+            throw new BusinessException("KIOSK_CARD_ONLY", "Kiosk orders only accept CARD payment");
         }
         // TODO(bancomer): hoy CARD se da por cobrado sin confirmación — la
         // orden entra directo a PENDING (cocina). Con la integración de la
@@ -125,13 +120,19 @@ public class OrderService {
         for (OrderItemRequest item : request.items()) {
             Product product = byId.get(item.productId());
             if (product.getCategory().getStores().stream().noneMatch(s -> s.getId().equals(storeId))) {
-                throw new BusinessException("Product does not belong to this store: " + product.getName());
+                throw new BusinessException("PRODUCT_WRONG_STORE",
+                        "Product does not belong to this store: " + product.getName(),
+                        Map.of("product", product.getName()));
             }
             if (!product.isActive() || product.isSoldOut() || product.getDeletedAt() != null) {
-                throw new BusinessException("Product is not available: " + product.getName());
+                throw new BusinessException("PRODUCT_UNAVAILABLE",
+                        "Product is not available: " + product.getName(),
+                        Map.of("product", product.getName()));
             }
             if (tokenPayment && product.getTokenCost() <= 0) {
-                throw new BusinessException("Not payable with tokens: " + product.getName());
+                throw new BusinessException("PRODUCT_NOT_TOKENABLE",
+                        "Not payable with tokens: " + product.getName(),
+                        Map.of("product", product.getName()));
             }
 
             BigDecimal unit = product.getPrice();
@@ -140,8 +141,9 @@ public class OrderService {
                 var size = product.getSizes().stream()
                         .filter(s -> s.getId().equals(item.sizeId()) && s.getDeletedAt() == null)
                         .findFirst()
-                        .orElseThrow(() -> new BusinessException(
-                                "Size not available for product: " + product.getName()));
+                        .orElseThrow(() -> new BusinessException("SIZE_UNAVAILABLE",
+                                "Size not available for product: " + product.getName(),
+                                Map.of("product", product.getName())));
                 sizeName = size.getName();
                 unit = unit.add(size.getPrice());
             }
@@ -152,8 +154,9 @@ public class OrderService {
                     var extra = product.getExtras().stream()
                             .filter(x -> x.getId().equals(e.extraId()) && x.getDeletedAt() == null)
                             .findFirst()
-                            .orElseThrow(() -> new BusinessException(
-                                    "Extra not available for product: " + product.getName()));
+                            .orElseThrow(() -> new BusinessException("EXTRA_UNAVAILABLE",
+                                    "Extra not available for product: " + product.getName(),
+                                    Map.of("product", product.getName())));
                     extras.add(new ItemExtraSnapshot(extra.getName(), extra.getPrice(), e.quantity()));
                     unit = unit.add(extra.getPrice().multiply(BigDecimal.valueOf(e.quantity())));
                 }
@@ -199,7 +202,7 @@ public class OrderService {
         if (request.paymentMethod() == Order.PaymentMethod.CASH
                 && request.cashReceived() != null) {
             if (request.cashReceived().compareTo(order.getTotal()) < 0) {
-                throw new BusinessException("Cash received is less than the total");
+                throw new BusinessException("CASH_INSUFFICIENT", "Cash received is less than the total");
             }
             order.setCashReceived(request.cashReceived());
             order.setChangeGiven(request.cashReceived().subtract(order.getTotal()));
@@ -263,7 +266,7 @@ public class OrderService {
     public OrderResponse updateStatus(Long id, Order.Status target) {
         Order order = findScopedOrThrow(id);
         if (!TRANSITIONS.get(order.getStatus()).contains(target)) {
-            throw new BusinessException(
+            throw new BusinessException("INVALID_STATUS_CHANGE",
                     "Cannot move order from " + order.getStatus() + " to " + target);
         }
         if (target == Order.Status.CANCELLED) {

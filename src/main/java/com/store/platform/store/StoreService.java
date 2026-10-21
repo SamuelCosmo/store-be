@@ -40,7 +40,9 @@ public class StoreService {
         Client client = clientRepository.findById(clientId)
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found: " + clientId));
         if (storeRepository.countByClientIdAndDeletedAtIsNull(clientId) >= client.getMaxStores()) {
-            throw new BusinessException("Store limit reached for this plan (" + client.getMaxStores() + ")");
+            throw new BusinessException("STORE_LIMIT",
+                    "Store limit reached for this plan (" + client.getMaxStores() + ")",
+                    java.util.Map.of("max", client.getMaxStores()));
         }
         Store store = Store.builder()
                 .client(client)
@@ -93,7 +95,8 @@ public class StoreService {
         int max = store.getClient().getMaxStores();
         if (store.getDeletedAt() != null
                 && storeRepository.countByClientIdAndDeletedAtIsNull(clientId) >= max) {
-            throw new BusinessException("Store limit reached for this plan (" + max + ")");
+            throw new BusinessException("STORE_LIMIT",
+                    "Store limit reached for this plan (" + max + ")", java.util.Map.of("max", max));
         }
         store.setDeletedAt(null);
         return StoreResponse.from(storeRepository.save(store));
@@ -146,7 +149,7 @@ public class StoreService {
         int ok = store.getKitchenOkMin() != null ? store.getKitchenOkMin() : 8;
         int warn = store.getKitchenWarnMin() != null ? store.getKitchenWarnMin() : 15;
         if (warn <= ok) {
-            throw new BusinessException("kitchenWarnMin must be greater than kitchenOkMin");
+            throw new BusinessException("KITCHEN_THRESHOLDS", "kitchenWarnMin must be greater than kitchenOkMin");
         }
         if (request.kitchenSound() != null) store.setKitchenSound(request.kitchenSound());
         return StoreSettingsResponse.from(storeRepository.save(store));
@@ -161,8 +164,9 @@ public class StoreService {
                 : client.getMaxKiosksPerStore();
         long registered = deviceRepository.countByStoreIdAndTypeAndActiveTrue(storeId, request.type());
         if (registered >= limit) {
-            throw new BusinessException(
-                    request.type() + " limit reached for this plan (" + limit + " per store)");
+            throw new BusinessException("DEVICE_LIMIT",
+                    request.type() + " limit reached for this plan (" + limit + " per store)",
+                    java.util.Map.of("limit", limit));
         }
         Device device = Device.builder()
                 .store(store)

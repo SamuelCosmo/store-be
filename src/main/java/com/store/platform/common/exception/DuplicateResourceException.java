@@ -1,8 +1,11 @@
 package com.store.platform.common.exception;
 
-public class DuplicateResourceException extends RuntimeException {
+import java.util.Map;
 
-    public DuplicateResourceException(String message) {
-        super(message);
+/** 409 — ya existe (correo, categoría…). */
+public class DuplicateResourceException extends BusinessException {
+
+    public DuplicateResourceException(String code, String message, Map<String, Object> params) {
+        super(code, message, params);
     }
 }

@@ -36,17 +36,24 @@ public class TokenService {
      *  cliente) por CASH/CARD. El canje NO pasa por aquí — es una orden con
      *  paymentMethod=TOKEN. */
     @Transactional
-    public TokenSaleResponse purchase(TokenSaleRequest request) {
+    public TokenSaleResponse purchase(TokenSaleRequest request, String idempotencyKey) {
+        com.store.platform.common.Idempotency.check(idempotencyKey);
         AuthUser auth = AuthContext.current();
         Long storeId = storeService.resolveScope(request.storeId());
         if (request.paymentMethod() == Order.PaymentMethod.TOKEN) {
-            throw new BusinessException("Token sales can't be paid with tokens");
+            throw new BusinessException("TOKEN_WITH_TOKENS", "Token sales can't be paid with tokens");
         }
-        Store store = storeRepository.findById(storeId)
+        // lock del store (igual que las órdenes): dos reintentos simultáneos
+        // con el mismo key no pueden crear dos ventas
+        Store store = storeRepository.findByIdForUpdate(storeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Store not found: " + storeId));
+        if (idempotencyKey != null) {
+            var existing = tokenSaleRepository.findByStoreIdAndIdempotencyKey(storeId, idempotencyKey);
+            if (existing.isPresent()) return TokenSaleResponse.from(existing.get());
+        }
         BigDecimal unitPrice = store.getClient().getTokenPrice();
         if (unitPrice == null || unitPrice.signum() <= 0) {
-            throw new BusinessException("Token sales are disabled — set a token price in settings");
+            throw new BusinessException("TOKEN_SALES_DISABLED", "Token sales are disabled — set a token price in settings");
         }
         TokenSale sale = tokenSaleRepository.save(TokenSale.builder()
                 .store(store)
@@ -55,6 +62,7 @@ public class TokenService {
                 .unitPrice(unitPrice)
                 .totalPrice(unitPrice.multiply(BigDecimal.valueOf(request.quantity())))
                 .paymentMethod(request.paymentMethod())
+                .idempotencyKey(idempotencyKey)
                 .build());
         return TokenSaleResponse.from(sale);
     }

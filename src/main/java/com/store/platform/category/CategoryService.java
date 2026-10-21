@@ -42,7 +42,8 @@ public class CategoryService {
         AuthUser auth = AuthContext.current();
         Set<Store> stores = resolveStores(request.storeIds(), auth);
         if (categoryRepository.existsByStores_Client_IdAndNameIgnoreCaseAndDeletedAtIsNull(auth.clientId(), request.name())) {
-            throw new DuplicateResourceException("Category already exists: " + request.name());
+            throw new DuplicateResourceException("CATEGORY_EXISTS", "Category already exists: " + request.name(),
+                    java.util.Map.of("name", request.name()));
         }
         Category category = Category.builder()
                 .stores(stores)
@@ -109,7 +110,8 @@ public class CategoryService {
         AuthUser auth = AuthContext.current();
         Category category = findScopedOrThrow(id);
         if (categoryRepository.existsByStores_Client_IdAndNameIgnoreCaseAndIdNotAndDeletedAtIsNull(auth.clientId(), request.name(), id)) {
-            throw new DuplicateResourceException("Category already exists: " + request.name());
+            throw new DuplicateResourceException("CATEGORY_EXISTS", "Category already exists: " + request.name(),
+                    java.util.Map.of("name", request.name()));
         }
         category.setName(request.name());
         category.setDescription(request.description());
@@ -128,8 +130,9 @@ public class CategoryService {
         Category category = findScopedOrThrow(id);
         long linked = productRepository.countByCategoryIdAndDeletedAtIsNull(category.getId());
         if (linked > 0) {
-            throw new BusinessException("La categoría tiene " + linked
-                    + " producto(s) enlazado(s) — desvincúlalos antes de eliminarla");
+            throw new BusinessException("CATEGORY_HAS_PRODUCTS",
+                    "Category has " + linked + " linked product(s)",
+                    java.util.Map.of("count", linked));
         }
         category.setDeletedAt(Instant.now());
         categoryRepository.save(category);
@@ -173,7 +176,7 @@ public class CategoryService {
     private Set<Store> resolveStores(Set<Long> storeIds, AuthUser auth) {
         if (storeIds == null || storeIds.isEmpty()) {
             if (auth.role() == User.Role.ADMIN) {
-                throw new BusinessException("storeIds required — pick the stores this category applies to");
+                throw new BusinessException("CATEGORY_STORES_REQUIRED", "storeIds required — pick the stores this category applies to");
             }
             return Set.of(storeService.findOrThrow(AuthContext.requireStoreId()));
         }

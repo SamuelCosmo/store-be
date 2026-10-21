@@ -22,7 +22,7 @@ public final class AuthContext {
     public static Long requireStoreId() {
         Long storeId = current().storeId();
         if (storeId == null) {
-            throw new BusinessException("No active store — log in selecting a storeId");
+            throw new BusinessException("NO_ACTIVE_STORE", "No active store — log in selecting a storeId");
         }
         return storeId;
     }

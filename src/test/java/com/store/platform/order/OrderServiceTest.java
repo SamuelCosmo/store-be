@@ -75,7 +75,8 @@ class OrderServiceTest {
         OrderRequest request = new OrderRequest(Order.Channel.KIOSK, Order.OrderType.DINE_IN,
                 Order.PaymentMethod.CASH, null, null,
                 List.of(new OrderItemRequest(1L, 1, null, null, null)));
-        assertThrows(BusinessException.class, () -> orderService.create(request, null));
+        BusinessException ex = assertThrows(BusinessException.class, () -> orderService.create(request, null));
+        assertEquals("KIOSK_CARD_ONLY", ex.getCode());
         verifyNoInteractions(orderRepository);
     }
 

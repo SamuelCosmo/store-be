@@ -43,11 +43,12 @@ public class AuthService {
         Client client = clientRepository.findById(request.clientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found: " + request.clientId()));
         if (userRepository.existsByClientIdAndDeletedAtIsNull(client.getId())) {
-            throw new BusinessException("Client already has users — ask your ADMIN to create your account");
+            throw new BusinessException("CLIENT_HAS_USERS", "Client already has users — ask your ADMIN to create your account");
         }
         String email = UserService.normalizeEmail(request.email());
         if (userRepository.existsByEmailIgnoreCaseAndDeletedAtIsNull(email)) {
-            throw new DuplicateResourceException("Email already registered: " + email);
+            throw new DuplicateResourceException("EMAIL_TAKEN", "Email already registered: " + email,
+                    java.util.Map.of("email", email));
         }
         User user = User.builder()
                 .client(client)
@@ -126,7 +127,7 @@ public class AuthService {
             if (liveStores.size() == 1) {
                 return liveStores.get(0).getId();
             }
-            throw new BusinessException("storeId required — your account operates multiple stores");
+            throw new BusinessException("STORE_REQUIRED", "storeId required — your account operates multiple stores");
         }
         Store store = storeRepository.findById(requestedStoreId)
                 .filter(s -> s.getDeletedAt() == null)

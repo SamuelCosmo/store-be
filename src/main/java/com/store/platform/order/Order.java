@@ -90,6 +90,13 @@ public class Order {
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
 
+    /** Bloqueo optimista: dos cambios de estado simultáneos (ej. dos
+     *  pantallas cancelando la misma orden) → el segundo falla con 409 en
+     *  vez de reponer inventario dos veces. Filas viejas arrancan en 0. */
+    @Version
+    @Column(nullable = false, columnDefinition = "bigint not null default 0")
+    private long version;
+
     /** Cuándo pasó a READY — nullable en órdenes viejas o canceladas antes. */
     private Instant readyAt;
 

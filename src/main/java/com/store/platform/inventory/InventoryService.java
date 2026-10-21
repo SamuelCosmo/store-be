@@ -39,10 +39,11 @@ public class InventoryService {
      * Call inside the caller's transaction.
      */
     public void decrease(Product product, int quantity) {
-        inventoryRepository.findByProductId(product.getId()).ifPresent(inventory -> {
+        inventoryRepository.findByProductIdForUpdate(product.getId()).ifPresent(inventory -> {
             if (inventory.getQuantity() < quantity) {
-                throw new InsufficientStockException(
-                        "Insufficient stock for product: " + product.getName());
+                throw new InsufficientStockException("OUT_OF_STOCK",
+                        "Insufficient stock for product: " + product.getName(),
+                        java.util.Map.of("product", product.getName()));
             }
             inventory.setQuantity(inventory.getQuantity() - quantity);
             inventoryRepository.save(inventory);
@@ -51,7 +52,7 @@ public class InventoryService {
 
     /** Restores stock — used when an order is cancelled. */
     public void increase(Product product, int quantity) {
-        inventoryRepository.findByProductId(product.getId()).ifPresent(inventory -> {
+        inventoryRepository.findByProductIdForUpdate(product.getId()).ifPresent(inventory -> {
             inventory.setQuantity(inventory.getQuantity() + quantity);
             inventoryRepository.save(inventory);
         });

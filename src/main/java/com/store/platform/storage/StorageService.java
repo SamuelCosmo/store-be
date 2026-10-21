@@ -72,14 +72,14 @@ public class StorageService {
     /** Valida tipo/tamaño, sube como `{prefix}/{uuid}.{ext}` y devuelve su URL pública. */
     private String upload(MultipartFile file, String prefix) {
         if (file == null || file.isEmpty()) {
-            throw new BusinessException("Empty file");
+            throw new BusinessException("FILE_EMPTY", "Empty file");
         }
         String ext = TYPES.get(file.getContentType());
         if (ext == null) {
-            throw new BusinessException("Only image files allowed (jpg, png, webp, gif)");
+            throw new BusinessException("FILE_TYPE", "Only image files allowed (jpg, png, webp, gif)");
         }
         if (file.getSize() > MAX_BYTES) {
-            throw new BusinessException("Image too large (max 5 MB)");
+            throw new BusinessException("FILE_TOO_LARGE", "Image too large (max 5 MB)");
         }
         String key = prefix + "/" + UUID.randomUUID() + "." + ext;
         try (var in = file.getInputStream()) {
@@ -91,7 +91,7 @@ public class StorageService {
                     .contentType(file.getContentType())
                     .build());
         } catch (Exception e) {
-            throw new BusinessException("Could not upload image: " + e.getMessage());
+            throw new BusinessException("UPLOAD_FAILED", "Could not upload image: " + e.getMessage());
         }
         return publicUrl + "/" + key;
     }

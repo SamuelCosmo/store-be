@@ -7,6 +7,8 @@ import java.util.List;
 
 public interface TokenSaleRepository extends JpaRepository<TokenSale, Long> {
 
+    java.util.Optional<TokenSale> findByStoreIdAndIdempotencyKey(Long storeId, String idempotencyKey);
+
     List<TokenSale> findByStoreIdAndCreatedAtBetweenOrderByCreatedAtDesc(
             Long storeId, Instant from, Instant to);
 

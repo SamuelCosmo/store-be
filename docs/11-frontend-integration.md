@@ -86,8 +86,21 @@ Todos los errores llegan como `ErrorResponse`:
   "timestamp": "...",
   "status": 409,
   "error": "Conflict",
+  "code": "OUT_OF_STOCK",
   "message": "Insufficient stock for product: Espresso",
+  "params": { "product": "Espresso" },
   "path": "/api/orders",
   "fieldErrors": { "name": "must not be blank" }
 }
 ```
+
+- **`code`** es estable — el front lo traduce (`err.<CODE>` en
+  `store-fe/lib/i18n/*.json`, con `params` como variables). Nunca mostrar
+  `message` al usuario: es técnico, en inglés, para logs/soporte.
+- Códigos genéricos: `VALIDATION` (400), `INVALID_CREDENTIALS` (401 —
+  contraseña equivocada, **no** cierra sesión), `FORBIDDEN` (403),
+  `NOT_FOUND` (404), `CONCURRENT_UPDATE` (409 — otro usuario cambió la
+  misma orden), `SERVER_ERROR` (500). Un 401 **sin** code = token
+  vencido/revocado → cerrar sesión.
+- Al agregar un `BusinessException(code, …)` nuevo, agregar también
+  `err.<CODE>` en es/en del front.

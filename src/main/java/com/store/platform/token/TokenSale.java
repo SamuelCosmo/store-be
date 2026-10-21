@@ -12,7 +12,8 @@ import java.time.Instant;
 /** Venta de fichas físicas en caja — el canje queda en la orden
  *  (paymentMethod=TOKEN + tokenAmount), aquí solo vive el lado del dinero. */
 @Entity
-@Table(name = "token_sales")
+@Table(name = "token_sales", uniqueConstraints = @UniqueConstraint(
+        name = "uk_token_sales_store_idempotency", columnNames = { "store_id", "idempotency_key" }))
 @Getter
 @Setter
 @NoArgsConstructor
@@ -47,6 +48,10 @@ public class TokenSale {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Order.PaymentMethod paymentMethod;
+
+    /** Header Idempotency-Key del cobro — reintento = misma venta. */
+    @Column(length = 64)
+    private String idempotencyKey;
 
     @Column(nullable = false, updatable = false)
     private Instant createdAt;
