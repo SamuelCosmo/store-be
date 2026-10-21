@@ -263,15 +263,21 @@ public class OrderService {
     }
 
     @Transactional
-    public OrderResponse updateStatus(Long id, Order.Status target) {
+    public OrderResponse updateStatus(Long id, Order.Status target, Boolean refunded) {
         Order order = findScopedOrThrow(id);
         if (!TRANSITIONS.get(order.getStatus()).contains(target)) {
             throw new BusinessException("INVALID_STATUS_CHANGE",
                     "Cannot move order from " + order.getStatus() + " to " + target);
         }
         if (target == Order.Status.CANCELLED) {
-            // paid orders are refunded manually by staff — mark them for the report
-            order.setRefundStatus(Order.RefundStatus.REFUNDED);
+            // el staff marca si el dinero ya se devolvió — un canje de fichas
+            // ($0) nunca es reembolso, aunque manden el flag
+            boolean moneyRefund = Boolean.TRUE.equals(refunded)
+                    && order.getPaymentMethod() != Order.PaymentMethod.TOKEN;
+            order.setRefundStatus(moneyRefund
+                    ? Order.RefundStatus.REFUNDED : Order.RefundStatus.NONE);
+            order.setCancelledBy(userRepository.getReferenceById(AuthContext.current().userId()));
+            order.setCancelledAt(Instant.now());
             order.getItems().forEach(item ->
                     inventoryService.increase(item.getProduct(), item.getQuantity()));
         }

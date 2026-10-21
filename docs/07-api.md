@@ -278,8 +278,12 @@ carrito. Unique `(store_id, idempotency_key)`.
   snapshot: `sizeName`, `extras[]` (`{name, price, quantity}` en jsonb)
   y `notes` en `order_items` — sobreviven ediciones/bajas del catálogo y
   se devuelven en `OrderItemResponse`.
-- `CANCELLED` permitido hasta `PREPARING` inclusive → restaura inventario y
-  `refund_status = REFUNDED` (reembolso manual por staff).
+- `CANCELLED` permitido hasta `PREPARING` inclusive → restaura inventario.
+  `PATCH /status` acepta `{ status, refunded }`: con `refunded=true` y pago
+  CASH/CARD queda `refund_status = REFUNDED` (el staff devolvió el dinero);
+  si no → `NONE`. Órdenes TOKEN ($0) nunca cuentan como reembolso. Se
+  registra `cancelled_by`/`cancelled_at` y vuelven como
+  `cancelledBy`/`cancelledAt` en `OrderResponse`.
 - Desglose de impuesto persistido: la orden guarda `subtotal`, `taxRate`
   (snapshot del `taxRate` del cliente al cobrar) y `taxAmount`. Los precios
   del catálogo **no** incluyen impuesto — el server lo agrega encima:
@@ -352,13 +356,15 @@ POST   /api/{recurso}/{id}/restore    # reactiva la fila
 GET    /api/reports/dashboard?from=&to=&storeId=&top=   # todo en una llamada
 ```
 
-Devuelve `DashboardResponse`: `totalSales`, `orders`, `avgTicket`,
+Devuelve `DashboardResponse`: `totalSales`, `tokenSales` (dinero por venta
+de fichas en el rango), `tokensSold` (piezas), `orders`, `avgTicket`,
 `cancelledOrders`, `refundedTotal`, `channels[]`, `orderTypes[]`,
 `payments[]`, `hourly[]`, `topProducts[]` (ordenado por revenue, `top=5`
-default), `employees[]`. Las órdenes `CANCELLED` no cuentan en ventas;
-`refundedTotal` suma las que quedaron `REFUNDED`.
+default), `employees[]` (incluye la cuenta del kiosco — es venta real).
+Las órdenes `CANCELLED` no cuentan en ventas; `refundedTotal` suma las que
+quedaron `REFUNDED`.
 
-- `from`/`to` = `YYYY-MM-DD` inclusive (default: hoy). Zona: `systemDefault`.
+- `from`/`to` = `YYYY-MM-DD` inclusive (default: hoy). Zona: `clients.timezone`.
 - `storeId` opcional solo para ADMIN; sin tienda en sesión y sin param,
   un ADMIN consolida todo el cliente.
 

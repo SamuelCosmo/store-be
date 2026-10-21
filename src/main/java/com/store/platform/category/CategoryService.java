@@ -163,10 +163,10 @@ public class CategoryService {
         Category category = categoryRepository.findById(id)
                 .filter(c -> c.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Category not found: " + id));
-        AuthUser auth = AuthContext.current();
-        boolean visible = auth.role() == User.Role.ADMIN
-                ? category.getStores().stream().anyMatch(s -> s.getClient().getId().equals(auth.clientId()))
-                : category.getStores().stream().anyMatch(s -> s.getId().equals(auth.storeId()));
+        // basta una tienda operable — cubre ADMIN client-wide y al resto por
+        // tienda de sesión o asignadas (user_stores)
+        boolean visible = category.getStores().stream()
+                .anyMatch(s -> storeService.canScope(s.getId()));
         if (!visible) {
             throw new ResourceNotFoundException("Category not found: " + id);
         }

@@ -12,6 +12,8 @@ import com.store.platform.report.dto.DashboardResponse.TopProduct;
 import com.store.platform.security.AuthContext;
 import com.store.platform.security.AuthUser;
 import com.store.platform.store.StoreService;
+import com.store.platform.token.TokenSale;
+import com.store.platform.token.TokenSaleRepository;
 import com.store.platform.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 public class ReportService {
 
     private final OrderRepository orderRepository;
+    private final TokenSaleRepository tokenSaleRepository;
     private final StoreService storeService;
     private final ClientService clientService;
 
@@ -49,12 +52,17 @@ public class ReportService {
         Instant end = toDate.plusDays(1).atStartOfDay(zone).toInstant();
 
         List<Order> orders;
+        List<TokenSale> tokenSales;
         if (storeId != null || auth.storeId() != null) {
             Long scope = storeService.resolveScope(storeId);
             orders = orderRepository.findByStoreIdAndCreatedAtBetween(scope, start, end);
+            tokenSales = tokenSaleRepository
+                    .findByStoreIdAndCreatedAtBetweenOrderByCreatedAtDesc(scope, start, end);
         } else {
             // ADMIN sin tienda activa: consolida todo el cliente
             orders = orderRepository.findByStoreClientIdAndCreatedAtBetween(auth.clientId(), start, end);
+            tokenSales = tokenSaleRepository
+                    .findByStoreClientIdAndCreatedAtBetweenOrderByCreatedAtDesc(auth.clientId(), start, end);
         }
 
         List<Order> sold = orders.stream()
@@ -81,8 +89,16 @@ public class ReportService {
             if (elapsedMin <= warnMin) onTime++; else late++;
         }
 
+        // la venta de fichas también es ingreso de caja — el canje va en $0
+        BigDecimal tokenRevenue = tokenSales.stream()
+                .map(TokenSale::getTotalPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long tokensSold = tokenSales.stream().mapToLong(TokenSale::getQuantity).sum();
+
         return new DashboardResponse(
                 totalSales,
+                tokenRevenue,
+                tokensSold,
                 sold.size(),
                 sold.isEmpty() ? BigDecimal.ZERO
                         : totalSales.divide(BigDecimal.valueOf(sold.size()), 2, RoundingMode.HALF_UP),

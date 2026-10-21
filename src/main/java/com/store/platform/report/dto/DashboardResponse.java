@@ -6,6 +6,10 @@ import java.util.List;
 /** Todo lo que alimenta /dashboard en una sola llamada. */
 public record DashboardResponse(
         BigDecimal totalSales,
+        /** Dinero por venta de fichas en el rango (entra a caja, no es canje). */
+        BigDecimal tokenSales,
+        /** Fichas vendidas (piezas) en el rango. */
+        long tokensSold,
         long orders,
         BigDecimal avgTicket,
         long cancelledOrders,

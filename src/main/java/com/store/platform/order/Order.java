@@ -97,6 +97,13 @@ public class Order {
     @Column(nullable = false, columnDefinition = "bigint not null default 0")
     private long version;
 
+    /** Staff que canceló — null en órdenes viejas o no canceladas. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cancelled_by")
+    private User cancelledBy;
+
+    private Instant cancelledAt;
+
     /** Cuándo pasó a READY — nullable en órdenes viejas o canceladas antes. */
     private Instant readyAt;
 

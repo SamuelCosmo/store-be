@@ -26,6 +26,9 @@ public record OrderResponse(
         BigDecimal changeGiven,
         /** Fichas cobradas — solo pagos TOKEN, null en los demás. */
         Integer tokenAmount,
+        /** Quién canceló y cuándo — null si no está cancelada. */
+        String cancelledBy,
+        Instant cancelledAt,
         /** Establecimiento de la orden (menuName gana sobre name) — encabezado del ticket. */
         String storeName,
         /** Nombre del negocio del tenant. */
@@ -57,6 +60,8 @@ public record OrderResponse(
                 order.getCashReceived(),
                 order.getChangeGiven(),
                 order.getTokenAmount(),
+                order.getCancelledBy() == null ? null : order.getCancelledBy().getName(),
+                order.getCancelledAt(),
                 order.getStore().getMenuName() != null && !order.getStore().getMenuName().isBlank()
                         ? order.getStore().getMenuName()
                         : order.getStore().getName(),

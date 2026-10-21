@@ -193,10 +193,14 @@ public class ProductService {
         Product product = productRepository.findById(id)
                 .filter(p -> p.getDeletedAt() == null)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found: " + id));
-        storeService.resolveScope(product.getCategory().getStores().stream()
-                .map(com.store.platform.store.Store::getId)
-                .findFirst()
-                .orElseThrow(() -> new ResourceNotFoundException("Category has no stores: " + id)));
+        // la categoría puede estar en varias tiendas — basta que el caller
+        // pueda operar alguna (un gerente de Norte también toca productos
+        // compartidos con Centro)
+        boolean scoped = product.getCategory().getStores().stream()
+                .anyMatch(s -> storeService.canScope(s.getId()));
+        if (!scoped) {
+            throw new ResourceNotFoundException("Product not found: " + id);
+        }
         return product;
     }
 

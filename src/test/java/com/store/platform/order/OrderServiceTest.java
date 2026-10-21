@@ -175,11 +175,52 @@ class OrderServiceTest {
         when(storeService.resolveScope(1L)).thenReturn(1L);
         when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
-        OrderResponse response = orderService.updateStatus(5L, Order.Status.CANCELLED);
+        OrderResponse response = orderService.updateStatus(5L, Order.Status.CANCELLED, true);
 
         assertEquals(Order.Status.CANCELLED, response.status());
         assertEquals(Order.RefundStatus.REFUNDED, response.refundStatus());
         verify(inventoryService).increase(product, 2);
+    }
+
+    @Test
+    void cancelWithoutRefundFlagStaysNone() {
+        authenticate(User.Role.EMPLOYEE);
+        Store store = Store.builder().id(1L).build();
+        Order order = Order.builder()
+                .id(5L).store(store).user(User.builder().id(7L).build())
+                .status(Order.Status.PREPARING).refundStatus(Order.RefundStatus.NONE)
+                .total(BigDecimal.TEN)
+                .items(List.of(OrderItem.builder().product(product).quantity(1)
+                        .unitPrice(BigDecimal.ONE).build()))
+                .build();
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+        when(storeService.resolveScope(1L)).thenReturn(1L);
+        when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        OrderResponse response = orderService.updateStatus(5L, Order.Status.CANCELLED, null);
+
+        assertEquals(Order.RefundStatus.NONE, response.refundStatus());
+    }
+
+    @Test
+    void tokenOrderCancelNeverCountsAsRefund() {
+        authenticate(User.Role.EMPLOYEE);
+        Store store = Store.builder().id(1L).build();
+        Order order = Order.builder()
+                .id(5L).store(store).user(User.builder().id(7L).build())
+                .status(Order.Status.PENDING).refundStatus(Order.RefundStatus.NONE)
+                .paymentMethod(Order.PaymentMethod.TOKEN).total(BigDecimal.ZERO)
+                .items(List.of(OrderItem.builder().product(product).quantity(1)
+                        .unitPrice(BigDecimal.ONE).build()))
+                .build();
+        when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
+        when(storeService.resolveScope(1L)).thenReturn(1L);
+        when(orderRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        // aunque el cajero marque "devuelto", un canje de $0 no es reembolso
+        OrderResponse response = orderService.updateStatus(5L, Order.Status.CANCELLED, true);
+
+        assertEquals(Order.RefundStatus.NONE, response.refundStatus());
     }
 
     @Test
@@ -191,7 +232,7 @@ class OrderServiceTest {
         when(storeService.resolveScope(1L)).thenReturn(1L);
 
         assertThrows(BusinessException.class,
-                () -> orderService.updateStatus(5L, Order.Status.CANCELLED));
+                () -> orderService.updateStatus(5L, Order.Status.CANCELLED, null));
         verifyNoInteractions(inventoryService);
     }
 }

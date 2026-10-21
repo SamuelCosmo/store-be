@@ -216,6 +216,17 @@ public class StoreService {
         throw new AccessDeniedException("You are not assigned to this store");
     }
 
+    /** Mismo criterio que {@link #resolveScope} sin lanzar — para revisar
+     *  pertenencia sobre varias tiendas (categorías con N stores). */
+    public boolean canScope(Long storeId) {
+        try {
+            resolveScope(storeId);
+            return true;
+        } catch (AccessDeniedException | ResourceNotFoundException e) {
+            return false;
+        }
+    }
+
     /** Store lookup scoped to a tenant — foreign stores are invisible, not forbidden. */
     public Store findOwnedOrThrow(Long id, Long clientId) {
         Store store = findOrThrow(id);
