@@ -22,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -219,42 +220,33 @@ public class OrderService {
 
     @Transactional(readOnly = true)
     public List<OrderResponse> list(Long storeId, Order.Status status) {
-        AuthUser auth = AuthContext.current();
-        // admin sin tienda activa → historial de todo el cliente
-        if (storeId == null && auth.storeId() == null && auth.role() == User.Role.ADMIN) {
-            List<Order> orders = status == null
-                    ? orderRepository.findByStoreClientIdOrderByCreatedAtDesc(auth.clientId())
-                    : orderRepository.findByStoreClientIdAndStatusOrderByCreatedAtDesc(
-                            auth.clientId(), status);
-            return orders.stream().map(OrderResponse::from).toList();
-        }
-        Long scope = storeService.resolveScope(storeId);
-        List<Order> orders = status == null
-                ? orderRepository.findByStoreIdOrderByCreatedAtDesc(scope)
-                : orderRepository.findByStoreIdAndStatusOrderByCreatedAtDesc(scope, status);
-        return orders.stream().map(OrderResponse::from).toList();
+        return orderRepository.findAll(scope(storeId, status), Sort.by("createdAt").descending())
+                .stream().map(OrderResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
     public Page<OrderResponse> listPage(Long storeId, Order.Status status, Pageable pageable) {
-        AuthUser auth = AuthContext.current();
         // historial: más reciente primero salvo sort explícito
         Pageable sorted = pageable.getSort().isUnsorted()
                 ? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
                         Sort.by("createdAt").descending())
                 : pageable;
-        // admin sin tienda activa → historial de todo el cliente
-        if (storeId == null && auth.storeId() == null && auth.role() == User.Role.ADMIN) {
-            Page<Order> orders = status == null
-                    ? orderRepository.findByStoreClientId(auth.clientId(), sorted)
-                    : orderRepository.findByStoreClientIdAndStatus(auth.clientId(), status, sorted);
-            return orders.map(OrderResponse::from);
-        }
-        Long scope = storeService.resolveScope(storeId);
-        Page<Order> orders = status == null
-                ? orderRepository.findByStoreId(scope, sorted)
-                : orderRepository.findByStoreIdAndStatus(scope, status, sorted);
-        return orders.map(OrderResponse::from);
+        return orderRepository.findAll(scope(storeId, status), sorted).map(OrderResponse::from);
+    }
+
+    /** Admin sin tienda activa → todo el cliente; si no, la tienda que
+     *  resuelve resolveScope (403 si no le toca). Status opcional. */
+    private Specification<Order> scope(Long storeId, Order.Status status) {
+        AuthUser auth = AuthContext.current();
+        boolean wholeClient = storeId == null && auth.storeId() == null
+                && auth.role() == User.Role.ADMIN;
+        Long store = wholeClient ? null : storeService.resolveScope(storeId);
+        return (root, query, cb) -> {
+            var owner = wholeClient
+                    ? cb.equal(root.get("store").get("client").get("id"), auth.clientId())
+                    : cb.equal(root.get("store").get("id"), store);
+            return status == null ? owner : cb.and(owner, cb.equal(root.get("status"), status));
+        };
     }
 
     @Transactional(readOnly = true)

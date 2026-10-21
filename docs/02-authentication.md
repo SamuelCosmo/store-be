@@ -21,9 +21,7 @@ envía como `Authorization: Bearer <jwt>` en cada request autenticada:
 
 - `POST /api/auth/login` y `/api/auth/superadmin` devuelven
   `AuthResponse` con `token`.
-- `POST /api/auth/logout` es público e idempotente — quedó para limpiar
-  cookies `store_token` de una versión previa que las usaba; la sesión
-  real muere al borrar el token del cliente.
+- Logout = el front borra el token local (no hay endpoint).
 - `JwtAuthFilter` lee solo el header `Bearer`.
 
 Revocación: `JwtAuthFilter` consulta el usuario en cada request y responde

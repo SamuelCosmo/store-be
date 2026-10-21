@@ -34,9 +34,6 @@ POST   /api/auth/login          # { email, password, storeId } → AuthResponse
                                 # Bearer. Rechaza SUPERADMIN (usa su endpoint)
 POST   /api/auth/superadmin     # { email, password } → AuthResponse — SOLO
                                 # cuentas de plataforma; lo consume /superadmin
-POST   /api/auth/logout         # 204 siempre — limpia cookies store_token de
-                                # versiones previas (la sesión real es el
-                                # token local del cliente)
 POST   /api/auth/stores         # { email, password } → [{id, name}] — tiendas
                                 # elegibles cuando login responde "storeId
                                 # required" (roles operativos con varias

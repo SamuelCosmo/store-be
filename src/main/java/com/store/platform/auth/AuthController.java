@@ -4,10 +4,8 @@ import com.store.platform.auth.dto.AuthResponse;
 import com.store.platform.auth.dto.LoginRequest;
 import com.store.platform.auth.dto.RegisterRequest;
 import com.store.platform.auth.dto.StoreOption;
-import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,7 +22,6 @@ import java.util.List;
 public class AuthController {
 
     private final AuthService authService;
-    private final AuthCookie authCookie;
 
     /** Solo plataforma — crea el primer ADMIN de un tenant que nació sin admin. */
     @PostMapping("/register")
@@ -42,14 +39,6 @@ public class AuthController {
     @PostMapping("/superadmin")
     public AuthResponse superadminLogin(@Valid @RequestBody LoginRequest request) {
         return authService.loginSuperadmin(request);
-    }
-
-    /** Limpia cookies store_token que pudo dejar una versión previa —
-     *  el front lo llama al cerrar sesión; siempre 204. */
-    @PostMapping("/logout")
-    public ResponseEntity<Void> logout(HttpServletResponse response) {
-        response.addHeader(HttpHeaders.SET_COOKIE, authCookie.clear().toString());
-        return ResponseEntity.noContent().build();
     }
 
     /** Tiendas elegibles de la cuenta — se consulta tras el error

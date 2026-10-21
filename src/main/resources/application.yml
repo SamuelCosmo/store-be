@@ -27,11 +27,6 @@ app:
     #   openssl rand -base64 48
     secret: ${JWT_SECRET}
     expiration-ms: ${JWT_EXPIRATION_MS:604800000}
-  cookie:
-    # Solo la usa POST /api/auth/logout para expirar cookies store_token
-    # que una versión previa pudo dejar en browsers (auth es Bearer).
-    secure: ${COOKIE_SECURE:false}
-    same-site: ${COOKIE_SAMESITE:Lax}
   storage:
     # Bucket local (adobe/s3mock en docker-compose). En producción apuntar
     # las env STORAGE_* al bucket real.

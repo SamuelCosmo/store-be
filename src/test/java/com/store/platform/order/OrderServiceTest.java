@@ -149,6 +149,17 @@ class OrderServiceTest {
     }
 
     @Test
+    void listIsScopedThroughResolveScope() {
+        authenticate(User.Role.EMPLOYEE);
+        when(storeService.resolveScope(2L))
+                .thenThrow(new org.springframework.security.access.AccessDeniedException("no"));
+        // tienda ajena → 403 antes de consultar
+        assertThrows(org.springframework.security.access.AccessDeniedException.class,
+                () -> orderService.list(2L, null));
+        verifyNoInteractions(orderRepository);
+    }
+
+    @Test
     void cancelRestoresInventoryAndMarksRefund() {
         authenticate(User.Role.EMPLOYEE);
         Store store = Store.builder().id(1L).build();

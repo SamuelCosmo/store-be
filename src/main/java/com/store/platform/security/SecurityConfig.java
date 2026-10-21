@@ -44,7 +44,7 @@ public class SecurityConfig {
                         // solo los pasos de login son públicos — register va con SUPERADMIN
                         .requestMatchers(HttpMethod.POST,
                                 "/api/auth/login", "/api/auth/superadmin", "/api/auth/stores",
-                                "/api/auth/logout", "/api/logs")
+                                "/api/logs")
                         .permitAll()
                         .requestMatchers("/api/media/**").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
@@ -58,8 +58,6 @@ public class SecurityConfig {
         config.setAllowedOrigins(corsOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
-        // la cookie httpOnly viaja cross-origin → credentials obligatorio
-        config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;

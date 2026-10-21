@@ -32,8 +32,8 @@ Siguientes requests:
   Authorization: Bearer <token>   (el front lo guarda en la sesión local)
 
 Logout:
-  borrar la sesión local; POST /api/auth/logout es opcional (limpia
-  cookies de versiones previas)
+  borrar la sesión local (no hay endpoint — para revocar en el server
+  se sube users.token_version, ver 02-authentication.md)
 ```
 
 - El front guarda la sesión en localStorage (token + userId, role,
