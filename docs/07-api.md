@@ -44,6 +44,14 @@ POST   /api/auth/stores         # { email, password } → [{id, name}] — tiend
 Todas las requests autenticadas viajan con `Authorization: Bearer <jwt>`
 (ver `02-authentication.md`).
 
+**Rate limiting** (ventanas fijas en memoria — una instancia; multi-réplica
+requeriría base/Redis):
+- `login`, `superadmin` y `stores` cuentan **intentos fallidos**: 5 por
+  correo o 30 por IP en 10 min → **429 `RATE_LIMITED`**. Un login exitoso
+  reinicia el contador del correo.
+- `POST /api/logs`: 60 eventos/min por IP — el exceso se descarta en
+  silencio (204), sin 429, para no generar una línea WARN por request.
+
 ## Clients (tenants) ✅
 
 ```text
@@ -228,6 +236,8 @@ POST   /api/orders              # ADMIN/MANAGER/EMPLOYEE/CUSTOMER (cocina no ven
                                #  header opcional Idempotency-Key ([A-Za-z0-9-]{8,64})
 GET    /api/orders              # staff (no CUSTOMER) — ?storeId=&status=&page=&size=&sort=
                                #  (página para historial; array para KDS)
+                               #  `status` admite varios separados por coma:
+                               #  ?status=PENDING,CONFIRMED,PREPARING,READY
 GET    /api/orders/{id}         # staff
 GET    /api/orders/{id}/ticket   # staff — OrderResponse + storeName (menuName ?: name)
                                #  + storeAddress — payload autocontenido para reimprimir.

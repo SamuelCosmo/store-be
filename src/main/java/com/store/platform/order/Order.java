@@ -4,6 +4,7 @@ import com.store.platform.store.Store;
 import com.store.platform.user.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -83,6 +84,8 @@ public class Order {
     @Column(length = 64)
     private String idempotencyKey;
 
+    // sin batch, un listado de N órdenes dispara N selects de items (KDS)
+    @BatchSize(size = 100)
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OrderItem> items = new ArrayList<>();

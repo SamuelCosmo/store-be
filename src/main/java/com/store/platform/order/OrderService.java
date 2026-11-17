@@ -222,24 +222,25 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
-    public List<OrderResponse> list(Long storeId, Order.Status status) {
-        return orderRepository.findAll(scope(storeId, status), Sort.by("createdAt").descending())
+    public List<OrderResponse> list(Long storeId, List<Order.Status> statuses) {
+        return orderRepository.findAll(scope(storeId, statuses), Sort.by("createdAt").descending())
                 .stream().map(OrderResponse::from).toList();
     }
 
     @Transactional(readOnly = true)
-    public Page<OrderResponse> listPage(Long storeId, Order.Status status, Pageable pageable) {
+    public Page<OrderResponse> listPage(Long storeId, List<Order.Status> statuses, Pageable pageable) {
         // historial: más reciente primero salvo sort explícito
         Pageable sorted = pageable.getSort().isUnsorted()
                 ? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(),
                         Sort.by("createdAt").descending())
                 : pageable;
-        return orderRepository.findAll(scope(storeId, status), sorted).map(OrderResponse::from);
+        return orderRepository.findAll(scope(storeId, statuses), sorted).map(OrderResponse::from);
     }
 
     /** Admin sin tienda activa → todo el cliente; si no, la tienda que
-     *  resuelve resolveScope (403 si no le toca). Status opcional. */
-    private Specification<Order> scope(Long storeId, Order.Status status) {
+     *  resuelve resolveScope (403 si no le toca). Statuses opcional —
+     *  el KDS pide los activos en un solo request: ?status=PENDING,... */
+    private Specification<Order> scope(Long storeId, List<Order.Status> statuses) {
         AuthUser auth = AuthContext.current();
         boolean wholeClient = storeId == null && auth.storeId() == null
                 && auth.role() == User.Role.ADMIN;
@@ -248,7 +249,9 @@ public class OrderService {
             var owner = wholeClient
                     ? cb.equal(root.get("store").get("client").get("id"), auth.clientId())
                     : cb.equal(root.get("store").get("id"), store);
-            return status == null ? owner : cb.and(owner, cb.equal(root.get("status"), status));
+            return statuses == null || statuses.isEmpty()
+                    ? owner
+                    : cb.and(owner, root.get("status").in(statuses));
         };
     }
 

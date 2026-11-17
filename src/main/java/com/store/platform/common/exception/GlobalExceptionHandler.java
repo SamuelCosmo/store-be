@@ -42,6 +42,12 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.CONFLICT, "CONCURRENT_UPDATE", "Concurrent update", Map.of(), request);
     }
 
+    @ExceptionHandler(RateLimitException.class)
+    public ResponseEntity<ErrorResponse> handleRateLimit(RateLimitException ex,
+                                                       HttpServletRequest request) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, ex.getCode(), ex.getMessage(), ex.getParams(), request);
+    }
+
     @ExceptionHandler(BusinessException.class)
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException ex,
                                                         HttpServletRequest request) {

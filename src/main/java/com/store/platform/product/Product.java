@@ -5,12 +5,15 @@ import com.store.platform.extra.Extra;
 import com.store.platform.size.Size;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
+// proxies en lote — los order_items del KDS referencian productos lazy
+@BatchSize(size = 100)
 @Entity
 @Table(name = "products")
 @Getter

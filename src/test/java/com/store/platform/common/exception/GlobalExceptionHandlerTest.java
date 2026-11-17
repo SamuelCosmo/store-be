@@ -36,4 +36,11 @@ class GlobalExceptionHandlerTest {
         assertEquals(401, res.getStatusCode().value());
         assertEquals("INVALID_CREDENTIALS", res.getBody().code());
     }
+
+    @Test
+    void rateLimitIsA429WithCode() {
+        var res = handler.handleRateLimit(new RateLimitException(), request);
+        assertEquals(429, res.getStatusCode().value());
+        assertEquals("RATE_LIMITED", res.getBody().code());
+    }
 }

@@ -7,6 +7,7 @@ import com.store.platform.order.dto.TicketResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -32,11 +33,12 @@ public class OrderController {
 
     /** Sin page/size → array completo (KDS); con ellos → Page (historial/admin).
      *  Se decide por presencia explícita: el fallback de Boot pagina hasta sin params.
-     *  Solo staff: el kiosco (CUSTOMER) arma su ticket con la respuesta del POST. */
+     *  Solo staff: el kiosco (CUSTOMER) arma su ticket con la respuesta del POST.
+     *  `status` admite varios (?status=PENDING,READY) — un solo request del KDS. */
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE','KITCHEN')")
     public Object list(@RequestParam(required = false) Long storeId,
-                       @RequestParam(required = false) Order.Status status,
+                       @RequestParam(required = false) List<Order.Status> status,
                        @RequestParam(required = false) Integer page,
                        @RequestParam(required = false) Integer size,
                        Pageable pageable) {

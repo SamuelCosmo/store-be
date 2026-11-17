@@ -2,7 +2,6 @@ package com.store.platform.report;
 
 import com.store.platform.client.ClientService;
 import com.store.platform.order.Order;
-import com.store.platform.order.OrderItem;
 import com.store.platform.order.OrderRepository;
 import com.store.platform.report.dto.DashboardResponse;
 import com.store.platform.report.dto.DashboardResponse.EmployeeSales;
@@ -12,26 +11,25 @@ import com.store.platform.report.dto.DashboardResponse.TopProduct;
 import com.store.platform.security.AuthContext;
 import com.store.platform.security.AuthUser;
 import com.store.platform.store.StoreService;
-import com.store.platform.token.TokenSale;
 import com.store.platform.token.TokenSaleRepository;
-import com.store.platform.user.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.stream.Collectors;
 
+/** Agregados por SQL — el dashboard ya no carga entidades ni el grafo de
+ *  items (ver OrderRepository); solo hourly/onTime traen filas ligeras
+ *  porque el corte por hora depende de la zona del negocio. */
 @Service
 @RequiredArgsConstructor
 public class ReportService {
@@ -51,121 +49,73 @@ public class ReportService {
         Instant start = fromDate.atStartOfDay(zone).toInstant();
         Instant end = toDate.plusDays(1).atStartOfDay(zone).toInstant();
 
-        List<Order> orders;
-        List<TokenSale> tokenSales;
-        if (storeId != null || auth.storeId() != null) {
-            Long scope = storeService.resolveScope(storeId);
-            orders = orderRepository.findByStoreIdAndCreatedAtBetween(scope, start, end);
-            tokenSales = tokenSaleRepository
-                    .findByStoreIdAndCreatedAtBetweenOrderByCreatedAtDesc(scope, start, end);
-        } else {
-            // ADMIN sin tienda activa: consolida todo el cliente
-            orders = orderRepository.findByStoreClientIdAndCreatedAtBetween(auth.clientId(), start, end);
-            tokenSales = tokenSaleRepository
-                    .findByStoreClientIdAndCreatedAtBetweenOrderByCreatedAtDesc(auth.clientId(), start, end);
+        // storeId explícito o el de sesión; null → consolida todo el cliente
+        Long scope = storeId != null || auth.storeId() != null
+                ? storeService.resolveScope(storeId) : null;
+        Long clientId = auth.clientId();
+
+        long soldCount = 0, cancelledCount = 0;
+        BigDecimal totalSales = BigDecimal.ZERO, refunded = BigDecimal.ZERO;
+        for (Object[] r : orderRepository.aggregateByStatus(scope, clientId, start, end)) {
+            if (r[0] == Order.Status.CANCELLED) {
+                cancelledCount += (long) r[2];
+                if (r[1] == Order.RefundStatus.REFUNDED) {
+                    refunded = refunded.add((BigDecimal) r[3]);
+                }
+            } else {
+                soldCount += (long) r[2];
+                totalSales = totalSales.add((BigDecimal) r[3]);
+            }
         }
 
-        List<Order> sold = orders.stream()
-                .filter(o -> o.getStatus() != Order.Status.CANCELLED)
-                .toList();
-        List<Order> cancelled = orders.stream()
-                .filter(o -> o.getStatus() == Order.Status.CANCELLED)
-                .toList();
-
-        BigDecimal totalSales = sumTotal(sold);
-        BigDecimal refunded = cancelled.stream()
-                .filter(o -> o.getRefundStatus() == Order.RefundStatus.REFUNDED)
-                .map(Order::getTotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+        // filas ligeras: bucket por hora (en la zona del negocio) + onTime/late
+        Map<Integer, BigDecimal> byHour = new TreeMap<>();
         long onTime = 0, late = 0;
-        for (Order o : sold) {
-            // solo cuentan las ya entregadas; viejas sin completedAt se saltan
-            if (o.getCompletedAt() == null) continue;
-            int warnMin = o.getStore().getKitchenWarnMin() != null
-                    ? o.getStore().getKitchenWarnMin() : 15;
-            long elapsedMin = java.time.Duration
-                    .between(o.getCreatedAt(), o.getCompletedAt()).toMinutes();
-            if (elapsedMin <= warnMin) onTime++; else late++;
+        Order.Status cancelled = Order.Status.CANCELLED;
+        for (Object[] r : orderRepository.dashboardRows(scope, clientId, cancelled, start, end)) {
+            Instant createdAt = (Instant) r[0];
+            byHour.merge(createdAt.atZone(zone).getHour(), (BigDecimal) r[2], BigDecimal::add);
+            Instant completedAt = (Instant) r[1];
+            if (completedAt != null) {
+                int warnMin = r[3] != null ? (int) r[3] : 15;
+                if (Duration.between(createdAt, completedAt).toMinutes() <= warnMin) onTime++;
+                else late++;
+            }
         }
 
         // la venta de fichas también es ingreso de caja — el canje va en $0
-        BigDecimal tokenRevenue = tokenSales.stream()
-                .map(TokenSale::getTotalPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        long tokensSold = tokenSales.stream().mapToLong(TokenSale::getQuantity).sum();
+        Object[] tokens = tokenSaleRepository.sumInRange(scope, clientId, start, end);
 
         return new DashboardResponse(
                 totalSales,
-                tokenRevenue,
-                tokensSold,
-                sold.size(),
-                sold.isEmpty() ? BigDecimal.ZERO
-                        : totalSales.divide(BigDecimal.valueOf(sold.size()), 2, RoundingMode.HALF_UP),
-                cancelled.size(),
+                (BigDecimal) tokens[0],
+                ((Number) tokens[1]).longValue(),
+                soldCount,
+                soldCount == 0 ? BigDecimal.ZERO
+                        : totalSales.divide(BigDecimal.valueOf(soldCount), 2, RoundingMode.HALF_UP),
+                cancelledCount,
                 refunded,
-                slices(sold, Order::getChannel),
-                slices(sold, Order::getOrderType),
-                slices(sold, Order::getPaymentMethod),
-                hourly(sold, zone),
-                topProducts(sold, top),
-                byEmployee(sold),
+                slices(orderRepository.aggregateByChannel(scope, clientId, cancelled, start, end)),
+                slices(orderRepository.aggregateByOrderType(scope, clientId, cancelled, start, end)),
+                slices(orderRepository.aggregateByPaymentMethod(scope, clientId, cancelled, start, end)),
+                byHour.entrySet().stream()
+                        .map(e -> new HourlyPoint(e.getKey(), e.getValue())).toList(),
+                orderRepository.topProducts(scope, clientId, cancelled, start, end).stream()
+                        .map(r -> new TopProduct((Long) r[0], (String) r[1],
+                                ((Number) r[2]).longValue(), (BigDecimal) r[3]))
+                        .limit(top).toList(),
+                orderRepository.aggregateByUser(scope, clientId, cancelled, start, end).stream()
+                        .map(r -> new EmployeeSales((Long) r[0], (String) r[1],
+                                (long) r[2], (BigDecimal) r[3]))
+                        .sorted(Comparator.comparing(EmployeeSales::total).reversed()).toList(),
                 onTime,
                 late);
     }
 
-    private List<Slice> slices(List<Order> orders, java.util.function.Function<Order, ?> key) {
-        Map<Object, List<Order>> grouped = orders.stream()
-                .collect(Collectors.groupingBy(key, LinkedHashMap::new, Collectors.toList()));
-        return grouped.entrySet().stream()
-                .map(e -> new Slice(e.getKey().toString(), e.getValue().size(), sumTotal(e.getValue())))
+    private List<Slice> slices(List<Object[]> rows) {
+        return rows.stream()
+                .map(r -> new Slice(r[0].toString(), (long) r[1], (BigDecimal) r[2]))
                 .sorted(Comparator.comparing(Slice::orders).reversed())
                 .toList();
-    }
-
-    private List<HourlyPoint> hourly(List<Order> orders, ZoneId zone) {
-        Map<Integer, BigDecimal> byHour = new TreeMap<>();
-        for (Order o : orders) {
-            int hour = o.getCreatedAt().atZone(zone).getHour();
-            byHour.merge(hour, o.getTotal(), BigDecimal::add);
-        }
-        return byHour.entrySet().stream()
-                .map(e -> new HourlyPoint(e.getKey(), e.getValue()))
-                .toList();
-    }
-
-    private List<TopProduct> topProducts(List<Order> orders, int top) {
-        Map<Long, long[]> qty = new LinkedHashMap<>();
-        Map<Long, BigDecimal> revenue = new LinkedHashMap<>();
-        Map<Long, String> names = new LinkedHashMap<>();
-        for (Order o : orders) {
-            for (OrderItem item : o.getItems()) {
-                Long pid = item.getProduct().getId();
-                qty.merge(pid, new long[] { item.getQuantity() }, (a, b) -> new long[] { a[0] + b[0] });
-                revenue.merge(pid,
-                        item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantity())),
-                        BigDecimal::add);
-                names.putIfAbsent(pid, item.getProduct().getName());
-            }
-        }
-        List<TopProduct> list = new ArrayList<>(revenue.entrySet().stream()
-                .map(e -> new TopProduct(e.getKey(), names.get(e.getKey()), qty.get(e.getKey())[0], e.getValue()))
-                .sorted(Comparator.comparing(TopProduct::revenue).reversed())
-                .toList());
-        return list.size() > top ? list.subList(0, top) : list;
-    }
-
-    private List<EmployeeSales> byEmployee(List<Order> orders) {
-        Map<User, List<Order>> grouped = orders.stream()
-                .collect(Collectors.groupingBy(Order::getUser, LinkedHashMap::new, Collectors.toList()));
-        return grouped.entrySet().stream()
-                .map(e -> new EmployeeSales(e.getKey().getId(), e.getKey().getName(),
-                        e.getValue().size(), sumTotal(e.getValue())))
-                .sorted(Comparator.comparing(EmployeeSales::total).reversed())
-                .toList();
-    }
-
-    private BigDecimal sumTotal(List<Order> orders) {
-        return orders.stream().map(Order::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 }

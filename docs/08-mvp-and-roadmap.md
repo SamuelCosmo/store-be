@@ -93,6 +93,12 @@ Requerimientos del modelo de negocio (ver [10-frontend-screens](10-frontend-scre
 - [ ] Items de orden con `sizeId`/`extraIds` (el POS/kiosko los necesitará)
 - [ ] `cashReceived`/`changeGiven` para pago en efectivo
 - [ ] Upload de imágenes de producto (hoy `image` es solo un URL en texto)
+- [ ] **Recuperar contraseña por correo** — `POST /api/auth/forgot`
+      (token firmado con caducidad corta, enviado al email) +
+      `POST /api/auth/reset`. **Bloqueado**: requiere servicio de
+      correo/mensajería contratado (SendGrid/SES/Resend…) — enchufar un
+      `MailService` cuando exista. Aplicar el mismo rate limit por
+      correo/IP que `login`/`stores`/`superadmin` (`RateLimiter`).
 
 ## Extras solicitados por el cliente
 

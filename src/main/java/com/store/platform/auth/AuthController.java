@@ -4,6 +4,8 @@ import com.store.platform.auth.dto.AuthResponse;
 import com.store.platform.auth.dto.LoginRequest;
 import com.store.platform.auth.dto.RegisterRequest;
 import com.store.platform.auth.dto.StoreOption;
+import com.store.platform.common.ClientIp;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -31,20 +33,23 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
-        return authService.login(request);
+    public AuthResponse login(@Valid @RequestBody LoginRequest request,
+                              HttpServletRequest http) {
+        return authService.login(request, ClientIp.from(http));
     }
 
     /** Login de plataforma — rechaza roles de tenant; lo usa /superadmin. */
     @PostMapping("/superadmin")
-    public AuthResponse superadminLogin(@Valid @RequestBody LoginRequest request) {
-        return authService.loginSuperadmin(request);
+    public AuthResponse superadminLogin(@Valid @RequestBody LoginRequest request,
+                                        HttpServletRequest http) {
+        return authService.loginSuperadmin(request, ClientIp.from(http));
     }
 
     /** Tiendas elegibles de la cuenta — se consulta tras el error
      *  "storeId required" para que el login muestre el selector. */
     @PostMapping("/stores")
-    public List<StoreOption> stores(@Valid @RequestBody LoginRequest request) {
-        return authService.storesForLogin(request);
+    public List<StoreOption> stores(@Valid @RequestBody LoginRequest request,
+                                    HttpServletRequest http) {
+        return authService.storesForLogin(request, ClientIp.from(http));
     }
 }

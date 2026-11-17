@@ -3,8 +3,11 @@ package com.store.platform.common.logging;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.store.platform.common.ClientIp;
+import com.store.platform.common.RateLimiter;
 import com.store.platform.common.exception.BusinessException;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,7 +36,6 @@ import java.util.List;
  * en la pantalla de login, antes de tener token.
  * GET: consulta de app_logs para la pantalla de SUPERADMIN.
  */
-// ponytail: sin rate limit — tope de tamaño por evento; agregar límite por IP si alguien lo abusa
 @RestController
 @RequestMapping("/api/logs")
 @RequiredArgsConstructor
@@ -41,13 +43,18 @@ public class ClientLogController {
 
     private static final Logger log = LoggerFactory.getLogger("client");
     private static final int MAX_CHARS = 32_768;
+    // anti-flood por IP — se descarta en silencio (204): un 429 se vería en
+    // RequestLogFilter como WARN y seguiría escribiendo una línea por request
+    private static final int MAX_PER_MINUTE = 60;
 
     private final ObjectMapper mapper;
     private final AppLogRepository repository;
+    private final RateLimiter rateLimiter;
 
     @PostMapping
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void log(@RequestBody String raw) {
+    public void log(@RequestBody String raw, HttpServletRequest http) {
+        if (!rateLimiter.tryAcquire("clientlog:" + ClientIp.from(http), MAX_PER_MINUTE, 60_000)) return;
         if (raw.length() > MAX_CHARS) throw new BusinessException("Log payload too large");
         JsonNode event;
         try {

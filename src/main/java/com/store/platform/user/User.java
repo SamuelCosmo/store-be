@@ -4,11 +4,14 @@ import com.store.platform.client.Client;
 import com.store.platform.store.Store;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.BatchSize;
 
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 
+// proxies en lote — order.user/cancelledBy son lazy
+@BatchSize(size = 100)
 @Entity
 @Table(name = "users")
 @Getter

@@ -100,7 +100,8 @@ Todos los errores llegan como `ErrorResponse`:
 - Códigos genéricos: `VALIDATION` (400), `INVALID_CREDENTIALS` (401 —
   contraseña equivocada, **no** cierra sesión), `FORBIDDEN` (403),
   `NOT_FOUND` (404), `CONCURRENT_UPDATE` (409 — otro usuario cambió la
-  misma orden), `SERVER_ERROR` (500). Un 401 **sin** code = token
+  misma orden), `RATE_LIMITED` (429 — ver rate limiting en `07-api.md`),
+  `SERVER_ERROR` (500). Un 401 **sin** code = token
   vencido/revocado → cerrar sesión.
 - Al agregar un `BusinessException(code, …)` nuevo, agregar también
   `err.<CODE>` en es/en del front.
