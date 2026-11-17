@@ -89,7 +89,7 @@ class ReportServiceTest {
                 .thenReturn(List.<Object[]>of(
                         new Object[] { 7L, "Ana", 3L, new BigDecimal("90.00") }));
         when(tokenSaleRepository.sumInRange(eq(1L), eq(1L), any(), any()))
-                .thenReturn(new Object[] { new BigDecimal("50.00"), 5L });
+                .thenReturn(List.<Object[]>of(new Object[] { new BigDecimal("50.00"), 5L }));
 
         DashboardResponse d = reportService.dashboard(
                 1L, java.time.LocalDate.of(2025, 1, 6), java.time.LocalDate.of(2025, 1, 6), 5);

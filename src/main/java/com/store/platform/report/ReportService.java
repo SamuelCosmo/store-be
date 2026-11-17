@@ -84,7 +84,7 @@ public class ReportService {
         }
 
         // la venta de fichas también es ingreso de caja — el canje va en $0
-        Object[] tokens = tokenSaleRepository.sumInRange(scope, clientId, start, end);
+        Object[] tokens = tokenSaleRepository.sumInRange(scope, clientId, start, end).get(0);
 
         return new DashboardResponse(
                 totalSales,

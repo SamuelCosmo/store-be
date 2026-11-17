@@ -11,12 +11,13 @@ public interface TokenSaleRepository extends JpaRepository<TokenSale, Long> {
 
     java.util.Optional<TokenSale> findByStoreIdAndIdempotencyKey(Long storeId, String idempotencyKey);
 
-    /** Dashboard: {revenue, piezas} del rango — storeId null → todo el cliente. */
+    /** Dashboard: {revenue, piezas} del rango — storeId null → todo el cliente.
+     *  List porque Spring envuelve la tupla en un arreglo si se declara Object[]. */
     @Query("select coalesce(sum(t.totalPrice), 0), coalesce(sum(t.quantity), 0) from TokenSale t "
             + "where t.createdAt between :from and :to "
             + "and (t.store.id = :storeId or (:storeId is null and t.store.client.id = :clientId))")
-    Object[] sumInRange(@Param("storeId") Long storeId, @Param("clientId") Long clientId,
-                        @Param("from") Instant from, @Param("to") Instant to);
+    List<Object[]> sumInRange(@Param("storeId") Long storeId, @Param("clientId") Long clientId,
+                              @Param("from") Instant from, @Param("to") Instant to);
 
     List<TokenSale> findByStoreIdAndCreatedAtBetweenOrderByCreatedAtDesc(
             Long storeId, Instant from, Instant to);
