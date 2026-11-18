@@ -2,6 +2,9 @@ package com.store.platform.client;
 
 import com.store.platform.client.dto.ClientSettingsRequest;
 import com.store.platform.common.exception.BusinessException;
+import com.store.platform.audit.AuditService;
+import com.store.platform.storage.StorageService;
+import com.store.platform.user.UserRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,6 +27,9 @@ import static org.mockito.Mockito.when;
 class ClientServiceTest {
 
     @Mock ClientRepository clientRepository;
+    @Mock UserRepository userRepository;
+    @Mock StorageService storageService;
+    @Mock AuditService auditService;
     @InjectMocks ClientService clientService;
 
     private final Client client = Client.builder().id(1L).name("Kofi").build();

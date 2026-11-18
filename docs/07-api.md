@@ -378,6 +378,30 @@ quedaron `REFUNDED`.
 - `storeId` opcional solo para ADMIN; sin tienda en sesión y sin param,
   un ADMIN consolida todo el cliente.
 
+## Audit ✅ *(ADMIN/SUPERADMIN)*
+
+```text
+GET    /api/audit?clientId=&entityType=&action=&storeId=&from=&to=&page=&size=&sort=
+```
+
+Bitácora de cambios de negocio — las mutaciones relevantes (catálogo,
+stores, usuarios, clientes, órdenes, ventas de fichas, inventario,
+dispositivos) escriben un `audit_events` dentro de la misma transacción:
+si la operación hace rollback, el evento también desaparece.
+
+- Siempre paginado (`Page<AuditEventResponse>`); sin `sort` ordena
+  `createdAt desc`.
+- Filtros opcionales: `entityType` (`product`, `order`, `token_sale`, …),
+  `action` (`create`, `update`, `delete`, `cancel`, `settings`, …),
+  `storeId`, `from`/`to` (ISO instant).
+- **Scope forzado en backend:** ADMIN solo ve su tenant — un `clientId`
+  arbitrario en el query se ignora. SUPERADMIN puede filtrar por
+  `clientId` o ver todos los tenants (sin param).
+- `details` = snapshot del alta o diff `{campo: {from, to}}` en updates;
+  nunca contiene passwords, tokens ni secretos.
+- El actor viaja como snapshot (`actorId`/`actorName`/`actorEmail`/
+  `actorRole`) — el historial sobrevive a cambios o baja del usuario.
+
 ## Bar *(pendiente de implementar)*
 
 ```text

@@ -1,6 +1,9 @@
 package com.store.platform.store;
 
 import com.store.platform.client.Client;
+import com.store.platform.audit.AuditService;
+import com.store.platform.client.ClientRepository;
+import com.store.platform.storage.StorageService;
 import com.store.platform.common.exception.BusinessException;
 import com.store.platform.security.AuthUser;
 import com.store.platform.store.dto.StoreSettingsRequest;
@@ -31,6 +34,10 @@ class StoreServiceTest {
 
     @Mock StoreRepository storeRepository;
     @Mock UserRepository userRepository;
+    @Mock DeviceRepository deviceRepository;
+    @Mock ClientRepository clientRepository;
+    @Mock StorageService storageService;
+    @Mock AuditService auditService;
     @InjectMocks StoreService storeService;
 
     private final Client client = Client.builder().id(1L).maxStores(1).build();

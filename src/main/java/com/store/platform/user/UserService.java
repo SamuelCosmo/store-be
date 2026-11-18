@@ -1,5 +1,6 @@
 package com.store.platform.user;
 
+import com.store.platform.audit.AuditService;
 import com.store.platform.auth.dto.StoreOption;
 import com.store.platform.client.Client;
 import com.store.platform.client.ClientRepository;
@@ -26,7 +27,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -36,11 +39,22 @@ public class UserService {
     private final UserRepository userRepository;
     private final ClientRepository clientRepository;
     private final StoreRepository storeRepository;
+    private final AuditService auditService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     /** Emails are stored lowercase — login and uniqueness are case-insensitive. */
     public static String normalizeEmail(String email) {
         return email == null ? null : email.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private static Map<String, Object> snapshot(User u) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", u.getName());
+        m.put("email", u.getEmail());
+        m.put("role", u.getRole().name());
+        m.put("active", u.isActive());
+        m.put("storeIds", u.getStores().stream().map(Store::getId).sorted().toList());
+        return m;
     }
 
     @Transactional
@@ -62,7 +76,10 @@ public class UserService {
                 .role(request.role())
                 .stores(resolveStores(clientId, request.storeIds()))
                 .build();
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        auditService.recordFor(clientId, null, "user", "create",
+                saved.getId(), saved.getName(), snapshot(saved));
+        return UserResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -98,6 +115,7 @@ public class UserService {
         }
         Set<Store> stores = resolveStores(user.getClient().getId(), request.storeIds());
         boolean newPassword = request.password() != null && !request.password().isBlank();
+        Map<String, Object> before = snapshot(user);
         // permisos cambiados → los tokens emitidos ya no los reflejan
         if (newPassword || user.getRole() != request.role() || !storeIds(user.getStores()).equals(storeIds(stores))) {
             user.revokeTokens();
@@ -110,7 +128,13 @@ public class UserService {
         user.setRole(request.role());
         user.getStores().clear();
         user.getStores().addAll(stores);
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        Map<String, Object> changes = AuditService.diff(before, snapshot(saved));
+        // el password nunca va al audit — solo el hecho de que cambió
+        if (newPassword) changes.put("passwordChanged", true);
+        auditService.recordFor(user.getClient().getId(), null, "user", "update",
+                saved.getId(), saved.getName(), changes);
+        return UserResponse.from(saved);
     }
 
     @Transactional
@@ -122,7 +146,10 @@ public class UserService {
         }
         if (!active) user.revokeTokens();
         user.setActive(active);
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        auditService.recordFor(user.getClient().getId(), null, "user",
+                active ? "activate" : "deactivate", saved.getId(), saved.getName(), null);
+        return UserResponse.from(saved);
     }
 
     @Transactional
@@ -132,12 +159,15 @@ public class UserService {
         if (user.getId().equals(AuthContext.current().userId())) {
             throw new BusinessException("SELF_DELETE", "You cannot delete your own account");
         }
+        Long clientId = user.getClient().getId();
+        String name = user.getName();
         user.setDeletedAt(Instant.now());
         user.revokeTokens();
         // email es UNIQUE a nivel DB: se reescribe para liberar el correo y que
         // pueda registrarse de nuevo (la fila queda para el historial de órdenes)
         user.setEmail(user.getEmail() + ".deleted-" + user.getId());
         userRepository.save(user);
+        auditService.recordFor(clientId, null, "user", "delete", id, name, null);
     }
 
     @Transactional(readOnly = true)
@@ -167,7 +197,10 @@ public class UserService {
         }
         user.setEmail(email);
         user.setDeletedAt(null);
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        auditService.recordFor(saved.getClient().getId(), null, "user", "restore",
+                saved.getId(), saved.getName(), null);
+        return UserResponse.from(saved);
     }
 
     /** Tiendas que el usuario puede ver/operar: ADMIN → todas las del

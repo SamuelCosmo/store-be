@@ -1,6 +1,7 @@
 package com.store.platform.user;
 
 import com.store.platform.client.ClientRepository;
+import com.store.platform.audit.AuditService;
 import com.store.platform.security.AuthUser;
 import com.store.platform.store.StoreRepository;
 import com.store.platform.user.dto.UserRequest;
@@ -33,6 +34,7 @@ class UserServiceTest {
     @Mock UserRepository userRepository;
     @Mock ClientRepository clientRepository;
     @Mock StoreRepository storeRepository;
+    @Mock AuditService auditService;
     @InjectMocks UserService userService;
 
     @BeforeEach

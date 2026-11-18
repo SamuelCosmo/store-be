@@ -1,5 +1,6 @@
 package com.store.platform.category;
 
+import com.store.platform.audit.AuditService;
 import com.store.platform.category.dto.CategoryRequest;
 import com.store.platform.category.dto.CategoryResponse;
 import com.store.platform.common.exception.BusinessException;
@@ -21,7 +22,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -32,9 +35,18 @@ public class CategoryService {
     private final CategoryRepository categoryRepository;
     private final ProductRepository productRepository;
     private final StoreService storeService;
+    private final AuditService auditService;
 
     private CategoryResponse toResponse(Category c) {
         return CategoryResponse.from(c, productRepository.countByCategoryIdAndDeletedAtIsNull(c.getId()));
+    }
+
+    private static Map<String, Object> snapshot(Category c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", c.getName());
+        m.put("active", c.isActive());
+        m.put("storeIds", c.getStores().stream().map(Store::getId).sorted().toList());
+        return m;
     }
 
     @Transactional
@@ -52,7 +64,9 @@ public class CategoryService {
                 .icon(request.icon())
                 .active(request.active() == null || request.active())
                 .build();
-        return toResponse(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        auditService.record("category", "create", saved.getId(), saved.getName(), snapshot(saved));
+        return toResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -113,6 +127,7 @@ public class CategoryService {
             throw new DuplicateResourceException("CATEGORY_EXISTS", "Category already exists: " + request.name(),
                     java.util.Map.of("name", request.name()));
         }
+        Map<String, Object> before = snapshot(category);
         category.setName(request.name());
         category.setDescription(request.description());
         category.setIcon(request.icon());
@@ -122,7 +137,10 @@ public class CategoryService {
             category.getStores().clear();
             category.getStores().addAll(resolveStores(request.storeIds(), auth));
         }
-        return toResponse(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        auditService.record("category", "update", saved.getId(), saved.getName(),
+                AuditService.diff(before, snapshot(saved)));
+        return toResponse(saved);
     }
 
     @Transactional
@@ -135,7 +153,8 @@ public class CategoryService {
                     java.util.Map.of("count", linked));
         }
         category.setDeletedAt(Instant.now());
-        categoryRepository.save(category);
+        Category saved = categoryRepository.save(category);
+        auditService.record("category", "delete", saved.getId(), saved.getName(), null);
     }
 
     public List<CategoryResponse> listDeleted() {
@@ -154,7 +173,9 @@ public class CategoryService {
             throw new ResourceNotFoundException("Category not found: " + id);
         }
         category.setDeletedAt(null);
-        return toResponse(categoryRepository.save(category));
+        Category saved = categoryRepository.save(category);
+        auditService.record("category", "restore", saved.getId(), saved.getName(), null);
+        return toResponse(saved);
     }
 
     /** Category must be assigned to a store the caller may operate. */

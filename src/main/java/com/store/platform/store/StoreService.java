@@ -1,5 +1,6 @@
 package com.store.platform.store;
 
+import com.store.platform.audit.AuditService;
 import com.store.platform.client.Client;
 import com.store.platform.client.ClientRepository;
 import com.store.platform.common.exception.BusinessException;
@@ -23,7 +24,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +37,24 @@ public class StoreService {
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final AuditService auditService;
+
+    private static Map<String, Object> snapshot(Store s) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", s.getName());
+        m.put("active", s.isActive());
+        m.put("businessType", s.getBusinessType() != null ? s.getBusinessType().name() : null);
+        return m;
+    }
+
+    private static Map<String, Object> settingsSnapshot(Store s) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("menuName", s.getMenuName());
+        m.put("kitchenOkMin", s.getKitchenOkMin());
+        m.put("kitchenWarnMin", s.getKitchenWarnMin());
+        m.put("kitchenSound", s.getKitchenSound());
+        return m;
+    }
 
     @Transactional
     public StoreResponse create(Long clientId, StoreRequest request) {
@@ -56,7 +77,10 @@ public class StoreService {
                 .accentColor(normalize(request.accentColor()))
                 .canvasColor(normalize(request.canvasColor()))
                 .build();
-        return StoreResponse.from(storeRepository.save(store));
+        Store saved = storeRepository.save(store);
+        auditService.recordFor(clientId, saved.getId(), "store", "create",
+                saved.getId(), saved.getName(), snapshot(saved));
+        return StoreResponse.from(saved);
     }
 
     public StoreResponse getById(Long id, Long clientId) {
@@ -81,7 +105,9 @@ public class StoreService {
         // soft delete — las órdenes históricas siguen apuntando a la tienda
         Store store = findOwnedOrThrow(id, clientId);
         store.setDeletedAt(Instant.now());
-        storeRepository.save(store);
+        Store saved = storeRepository.save(store);
+        auditService.recordFor(clientId, saved.getId(), "store", "delete",
+                saved.getId(), saved.getName(), null);
     }
 
     @Transactional
@@ -99,7 +125,10 @@ public class StoreService {
                     "Store limit reached for this plan (" + max + ")", java.util.Map.of("max", max));
         }
         store.setDeletedAt(null);
-        return StoreResponse.from(storeRepository.save(store));
+        Store saved = storeRepository.save(store);
+        auditService.recordFor(clientId, saved.getId(), "store", "restore",
+                saved.getId(), saved.getName(), null);
+        return StoreResponse.from(saved);
     }
 
     /** Versión paginada para la tabla del admin. */
@@ -111,6 +140,7 @@ public class StoreService {
     @Transactional
     public StoreResponse update(Long id, StoreRequest request, Long clientId) {
         Store store = findOwnedOrThrow(id, clientId);
+        Map<String, Object> before = snapshot(store);
         store.setName(request.name());
         store.setDescription(request.description());
         store.setAddress(request.address());
@@ -126,7 +156,10 @@ public class StoreService {
         if (request.primaryColor() != null) store.setPrimaryColor(normalize(request.primaryColor()));
         if (request.accentColor() != null) store.setAccentColor(normalize(request.accentColor()));
         if (request.canvasColor() != null) store.setCanvasColor(normalize(request.canvasColor()));
-        return StoreResponse.from(storeRepository.save(store));
+        Store saved = storeRepository.save(store);
+        auditService.recordFor(clientId, saved.getId(), "store", "update",
+                saved.getId(), saved.getName(), AuditService.diff(before, snapshot(saved)));
+        return StoreResponse.from(saved);
     }
 
     private static String normalize(String value) {
@@ -140,6 +173,7 @@ public class StoreService {
     @Transactional
     public StoreSettingsResponse updateSettings(Long id, StoreSettingsRequest request, Long clientId) {
         Store store = findOwnedOrThrow(id, clientId);
+        Map<String, Object> before = settingsSnapshot(store);
         // blank = sin nombre de menú → se usa el nombre del establecimiento
         store.setMenuName(request.menuName() != null && !request.menuName().isBlank()
                 ? request.menuName().trim() : null);
@@ -152,7 +186,10 @@ public class StoreService {
             throw new BusinessException("KITCHEN_THRESHOLDS", "kitchenWarnMin must be greater than kitchenOkMin");
         }
         if (request.kitchenSound() != null) store.setKitchenSound(request.kitchenSound());
-        return StoreSettingsResponse.from(storeRepository.save(store));
+        Store saved = storeRepository.save(store);
+        auditService.recordFor(clientId, saved.getId(), "store", "settings",
+                saved.getId(), saved.getName(), AuditService.diff(before, settingsSnapshot(saved)));
+        return StoreSettingsResponse.from(saved);
     }
 
     @Transactional
@@ -174,7 +211,10 @@ public class StoreService {
                 .name(request.name())
                 .active(true)
                 .build();
-        return DeviceResponse.from(deviceRepository.save(device));
+        Device saved = deviceRepository.save(device);
+        auditService.recordFor(clientId, storeId, "device", "create",
+                saved.getId(), saved.getName(), Map.of("type", request.type().name()));
+        return DeviceResponse.from(saved);
     }
 
     public List<DeviceResponse> listDevices(Long storeId, Long clientId) {

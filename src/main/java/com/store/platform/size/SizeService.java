@@ -1,5 +1,6 @@
 package com.store.platform.size;
 
+import com.store.platform.audit.AuditService;
 import com.store.platform.client.Client;
 import com.store.platform.client.ClientRepository;
 import com.store.platform.common.exception.ResourceNotFoundException;
@@ -13,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,6 +27,16 @@ public class SizeService {
     private final SizeRepository sizeRepository;
     private final ClientRepository clientRepository;
     private final ProductRepository productRepository;
+    private final AuditService auditService;
+
+    private Map<String, Object> snapshot(Size s) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", s.getName());
+        m.put("price", s.getPrice());
+        m.put("active", s.isActive());
+        m.put("productIds", productIds(s.getId()).stream().sorted().toList());
+        return m;
+    }
 
     @Transactional
     public SizeResponse create(SizeRequest request) {
@@ -39,6 +52,7 @@ public class SizeService {
                 .build();
         size = sizeRepository.save(size);
         syncProducts(size, request.productIds(), clientId);
+        auditService.record("size", "create", size.getId(), size.getName(), snapshot(size));
         return SizeResponse.from(size, productIds(size.getId()));
     }
 
@@ -57,17 +71,23 @@ public class SizeService {
             Size size = findOwnedOrThrow(orderedIds.get(i));
             size.setPosition(i);
         }
+        auditService.record("size", "reorder", null, null,
+                Map.of("order", orderedIds));
         return list();
     }
 
     @Transactional
     public SizeResponse update(Long id, SizeRequest request) {
         Size size = findOwnedOrThrow(id);
+        Map<String, Object> before = snapshot(size);
         size.setName(request.name());
         size.setPrice(request.price());
         if (request.active() != null) size.setActive(request.active());
         syncProducts(size, request.productIds(), AuthContext.current().clientId());
-        return SizeResponse.from(sizeRepository.save(size), productIds(size.getId()));
+        Size saved = sizeRepository.save(size);
+        auditService.record("size", "update", saved.getId(), saved.getName(),
+                AuditService.diff(before, snapshot(saved)));
+        return SizeResponse.from(saved, productIds(saved.getId()));
     }
 
     @Transactional
@@ -76,7 +96,8 @@ public class SizeService {
         productRepository.findDistinctBySizes_IdAndDeletedAtIsNull(id)
                 .forEach(p -> p.getSizes().remove(size));
         size.setDeletedAt(Instant.now());
-        sizeRepository.save(size);
+        Size saved = sizeRepository.save(size);
+        auditService.record("size", "delete", saved.getId(), saved.getName(), null);
     }
 
     public List<SizeResponse> listDeleted() {
@@ -95,7 +116,9 @@ public class SizeService {
             throw new ResourceNotFoundException("Size not found: " + id);
         }
         size.setDeletedAt(null);
-        return SizeResponse.from(sizeRepository.save(size), productIds(size.getId()));
+        Size saved = sizeRepository.save(size);
+        auditService.record("size", "restore", saved.getId(), saved.getName(), null);
+        return SizeResponse.from(saved, productIds(saved.getId()));
     }
 
     /** Size must belong to the caller's client — foreign sizes are invisible. */

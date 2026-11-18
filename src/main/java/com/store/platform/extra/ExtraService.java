@@ -1,5 +1,6 @@
 package com.store.platform.extra;
 
+import com.store.platform.audit.AuditService;
 import com.store.platform.client.Client;
 import com.store.platform.client.ClientRepository;
 import com.store.platform.common.exception.ResourceNotFoundException;
@@ -13,7 +14,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -24,6 +27,16 @@ public class ExtraService {
     private final ExtraRepository extraRepository;
     private final ClientRepository clientRepository;
     private final ProductRepository productRepository;
+    private final AuditService auditService;
+
+    private Map<String, Object> snapshot(Extra e) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", e.getName());
+        m.put("price", e.getPrice());
+        m.put("active", e.isActive());
+        m.put("productIds", productIds(e.getId()).stream().sorted().toList());
+        return m;
+    }
 
     @Transactional
     public ExtraResponse create(ExtraRequest request) {
@@ -38,6 +51,7 @@ public class ExtraService {
                 .build();
         extra = extraRepository.save(extra);
         syncProducts(extra, request.productIds(), clientId);
+        auditService.record("extra", "create", extra.getId(), extra.getName(), snapshot(extra));
         return ExtraResponse.from(extra, productIds(extra.getId()));
     }
 
@@ -51,11 +65,15 @@ public class ExtraService {
     @Transactional
     public ExtraResponse update(Long id, ExtraRequest request) {
         Extra extra = findOwnedOrThrow(id);
+        Map<String, Object> before = snapshot(extra);
         extra.setName(request.name());
         extra.setPrice(request.price());
         if (request.active() != null) extra.setActive(request.active());
         syncProducts(extra, request.productIds(), AuthContext.current().clientId());
-        return ExtraResponse.from(extraRepository.save(extra), productIds(extra.getId()));
+        Extra saved = extraRepository.save(extra);
+        auditService.record("extra", "update", saved.getId(), saved.getName(),
+                AuditService.diff(before, snapshot(saved)));
+        return ExtraResponse.from(saved, productIds(saved.getId()));
     }
 
     @Transactional
@@ -66,7 +84,8 @@ public class ExtraService {
         productRepository.findDistinctByExtras_IdAndDeletedAtIsNull(id)
                 .forEach(p -> p.getExtras().remove(extra));
         extra.setDeletedAt(Instant.now());
-        extraRepository.save(extra);
+        Extra saved = extraRepository.save(extra);
+        auditService.record("extra", "delete", saved.getId(), saved.getName(), null);
     }
 
     public List<ExtraResponse> listDeleted() {
@@ -85,7 +104,9 @@ public class ExtraService {
             throw new ResourceNotFoundException("Extra not found: " + id);
         }
         extra.setDeletedAt(null);
-        return ExtraResponse.from(extraRepository.save(extra), productIds(extra.getId()));
+        Extra saved = extraRepository.save(extra);
+        auditService.record("extra", "restore", saved.getId(), saved.getName(), null);
+        return ExtraResponse.from(saved, productIds(saved.getId()));
     }
 
     /** Extra must belong to the caller's client — foreign extras are invisible. */

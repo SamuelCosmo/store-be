@@ -1,5 +1,6 @@
 package com.store.platform.order;
 
+import com.store.platform.audit.AuditService;
 import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.ResourceNotFoundException;
 import com.store.platform.inventory.InventoryService;
@@ -34,6 +35,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,6 +60,7 @@ public class OrderService {
     private final UserRepository userRepository;
     private final InventoryService inventoryService;
     private final StoreService storeService;
+    private final AuditService auditService;
 
     @Transactional
     public OrderResponse create(OrderRequest request, String idempotencyKey) {
@@ -210,7 +213,20 @@ public class OrderService {
         // folio semanal consecutivo — con el lock del store no hay duplicados
         order.setTicketNumber(
                 orderRepository.maxTicketNumberSince(storeId, weekStart(store.getClient().zone())) + 1);
-        return OrderResponse.from(orderRepository.save(order));
+        Order saved = orderRepository.save(order);
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("channel", saved.getChannel().name());
+        details.put("orderType", saved.getOrderType().name());
+        details.put("paymentMethod", saved.getPaymentMethod().name());
+        details.put("total", saved.getTotal());
+        details.put("items", saved.getItems().size());
+        auditService.recordFor(store.getClient().getId(), storeId, "order", "create",
+                saved.getId(), ticketLabel(saved), details);
+        return OrderResponse.from(saved);
+    }
+
+    private static String ticketLabel(Order order) {
+        return "#" + (order.getTicketNumber() != null ? order.getTicketNumber() : order.getId());
     }
 
     /** Lunes 00:00 de la semana actual en la zona del negocio (no la del server). */
@@ -268,6 +284,7 @@ public class OrderService {
     @Transactional
     public OrderResponse updateStatus(Long id, Order.Status target, Boolean refunded) {
         Order order = findScopedOrThrow(id);
+        Order.Status previous = order.getStatus();
         if (!TRANSITIONS.get(order.getStatus()).contains(target)) {
             throw new BusinessException("INVALID_STATUS_CHANGE",
                     "Cannot move order from " + order.getStatus() + " to " + target);
@@ -290,7 +307,17 @@ public class OrderService {
             order.setCompletedAt(java.time.Instant.now());
         }
         order.setStatus(target);
-        return OrderResponse.from(orderRepository.save(order));
+        Order saved = orderRepository.save(order);
+        if (target == Order.Status.CANCELLED) {
+            Map<String, Object> details = new LinkedHashMap<>();
+            details.put("from", previous.name());
+            details.put("refunded", saved.getRefundStatus() == Order.RefundStatus.REFUNDED);
+            details.put("total", saved.getTotal());
+            auditService.recordFor(saved.getStore().getClient().getId(),
+                    saved.getStore().getId(), "order", "cancel",
+                    saved.getId(), ticketLabel(saved), details);
+        }
+        return OrderResponse.from(saved);
     }
 
     /** Order must belong to a store the caller may operate. */

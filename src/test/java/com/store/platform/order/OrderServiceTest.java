@@ -1,6 +1,7 @@
 package com.store.platform.order;
 
 import com.store.platform.category.Category;
+import com.store.platform.audit.AuditService;
 import com.store.platform.client.Client;
 import com.store.platform.common.exception.BusinessException;
 import com.store.platform.inventory.InventoryService;
@@ -43,6 +44,7 @@ class OrderServiceTest {
     @Mock UserRepository userRepository;
     @Mock InventoryService inventoryService;
     @Mock StoreService storeService;
+    @Mock AuditService auditService;
     @InjectMocks OrderService orderService;
 
     private Product product;
@@ -163,7 +165,7 @@ class OrderServiceTest {
     @Test
     void cancelRestoresInventoryAndMarksRefund() {
         authenticate(User.Role.EMPLOYEE);
-        Store store = Store.builder().id(1L).build();
+        Store store = Store.builder().id(1L).client(Client.builder().id(1L).build()).build();
         Order order = Order.builder()
                 .id(5L).store(store).user(User.builder().id(7L).build())
                 .status(Order.Status.PREPARING).refundStatus(Order.RefundStatus.NONE)
@@ -185,7 +187,7 @@ class OrderServiceTest {
     @Test
     void cancelWithoutRefundFlagStaysNone() {
         authenticate(User.Role.EMPLOYEE);
-        Store store = Store.builder().id(1L).build();
+        Store store = Store.builder().id(1L).client(Client.builder().id(1L).build()).build();
         Order order = Order.builder()
                 .id(5L).store(store).user(User.builder().id(7L).build())
                 .status(Order.Status.PREPARING).refundStatus(Order.RefundStatus.NONE)
@@ -205,7 +207,7 @@ class OrderServiceTest {
     @Test
     void tokenOrderCancelNeverCountsAsRefund() {
         authenticate(User.Role.EMPLOYEE);
-        Store store = Store.builder().id(1L).build();
+        Store store = Store.builder().id(1L).client(Client.builder().id(1L).build()).build();
         Order order = Order.builder()
                 .id(5L).store(store).user(User.builder().id(7L).build())
                 .status(Order.Status.PENDING).refundStatus(Order.RefundStatus.NONE)
@@ -226,7 +228,7 @@ class OrderServiceTest {
     @Test
     void cannotCancelOnceReady() {
         authenticate(User.Role.EMPLOYEE);
-        Store store = Store.builder().id(1L).build();
+        Store store = Store.builder().id(1L).client(Client.builder().id(1L).build()).build();
         Order order = Order.builder().id(5L).store(store).status(Order.Status.READY).build();
         when(orderRepository.findById(5L)).thenReturn(Optional.of(order));
         when(storeService.resolveScope(1L)).thenReturn(1L);

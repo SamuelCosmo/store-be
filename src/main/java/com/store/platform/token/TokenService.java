@@ -1,5 +1,6 @@
 package com.store.platform.token;
 
+import com.store.platform.audit.AuditService;
 import com.store.platform.client.ClientService;
 import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.ResourceNotFoundException;
@@ -20,7 +21,9 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -31,6 +34,7 @@ public class TokenService {
     private final UserRepository userRepository;
     private final StoreService storeService;
     private final ClientService clientService;
+    private final AuditService auditService;
 
     /** Venta de fichas en caja: cobra quantity × tokenPrice (snapshot del
      *  cliente) por CASH/CARD. El canje NO pasa por aquí — es una orden con
@@ -64,6 +68,13 @@ public class TokenService {
                 .paymentMethod(request.paymentMethod())
                 .idempotencyKey(idempotencyKey)
                 .build());
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("quantity", sale.getQuantity());
+        details.put("unitPrice", sale.getUnitPrice());
+        details.put("total", sale.getTotalPrice());
+        details.put("paymentMethod", sale.getPaymentMethod().name());
+        auditService.recordFor(store.getClient().getId(), storeId, "token_sale", "purchase",
+                sale.getId(), sale.getQuantity() + " fichas", details);
         return TokenSaleResponse.from(sale);
     }
 

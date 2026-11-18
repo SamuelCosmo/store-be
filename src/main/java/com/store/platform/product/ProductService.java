@@ -1,5 +1,6 @@
 package com.store.platform.product;
 
+import com.store.platform.audit.AuditService;
 import com.store.platform.category.Category;
 import com.store.platform.category.CategoryService;
 import com.store.platform.common.exception.ResourceNotFoundException;
@@ -21,7 +22,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -35,6 +38,20 @@ public class ProductService {
     private final ExtraService extraService;
     private final SizeService sizeService;
     private final StorageService storageService;
+    private final AuditService auditService;
+
+    private static Map<String, Object> snapshot(Product p) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", p.getName());
+        m.put("categoryId", p.getCategory().getId());
+        m.put("price", p.getPrice());
+        m.put("tokenCost", p.getTokenCost());
+        m.put("active", p.isActive());
+        m.put("soldOut", p.isSoldOut());
+        m.put("extraIds", p.getExtras().stream().map(Extra::getId).sorted().toList());
+        m.put("sizeIds", p.getSizes().stream().map(Size::getId).sorted().toList());
+        return m;
+    }
 
     @Transactional
     public ProductResponse create(ProductRequest request) {
@@ -51,7 +68,9 @@ public class ProductService {
                 .extras(resolveExtras(request.extraIds()))
                 .sizes(resolveSizes(request.sizeIds()))
                 .build();
-        return ProductResponse.from(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        auditService.record("product", "create", saved.getId(), saved.getName(), snapshot(saved));
+        return ProductResponse.from(saved);
     }
 
     @Transactional(readOnly = true)
@@ -106,6 +125,7 @@ public class ProductService {
     public ProductResponse update(Long id, ProductRequest request) {
         Product product = findScopedOrThrow(id);
         Category category = categoryService.findScopedOrThrow(request.categoryId());
+        Map<String, Object> before = snapshot(product);
         product.setCategory(category);
         product.setName(request.name());
         product.setDescription(request.description());
@@ -129,6 +149,8 @@ public class ProductService {
         if (oldImage != null && !oldImage.equals(saved.getImage())) {
             storageService.deleteByUrl(oldImage);
         }
+        auditService.record("product", "update", saved.getId(), saved.getName(),
+                AuditService.diff(before, snapshot(saved)));
         return ProductResponse.from(saved);
     }
 
@@ -136,14 +158,20 @@ public class ProductService {
     public ProductResponse setActive(Long id, boolean active) {
         Product product = findScopedOrThrow(id);
         product.setActive(active);
-        return ProductResponse.from(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        auditService.record("product", active ? "activate" : "deactivate",
+                saved.getId(), saved.getName(), null);
+        return ProductResponse.from(saved);
     }
 
     @Transactional
     public ProductResponse setSoldOut(Long id, boolean soldOut) {
         Product product = findScopedOrThrow(id);
         product.setSoldOut(soldOut);
-        return ProductResponse.from(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        auditService.record("product", soldOut ? "sold_out" : "restock",
+                saved.getId(), saved.getName(), null);
+        return ProductResponse.from(saved);
     }
 
     @Transactional
@@ -151,7 +179,8 @@ public class ProductService {
         // la imagen se conserva: la fila sigue apuntando a ella para historial/restore
         Product product = findScopedOrThrow(id);
         product.setDeletedAt(Instant.now());
-        productRepository.save(product);
+        Product saved = productRepository.save(product);
+        auditService.record("product", "delete", saved.getId(), saved.getName(), null);
     }
 
     public List<ProductResponse> listDeleted() {
@@ -170,7 +199,9 @@ public class ProductService {
             throw new ResourceNotFoundException("Product not found: " + id);
         }
         product.setDeletedAt(null);
-        return ProductResponse.from(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        auditService.record("product", "restore", saved.getId(), saved.getName(), null);
+        return ProductResponse.from(saved);
     }
 
     private Set<Extra> resolveExtras(List<Long> extraIds) {

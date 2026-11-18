@@ -54,6 +54,7 @@ sin prefijo en la URL):
 | Categorías       | `/categories` | ✅   | CRUD `/api/categories` (multi-tienda)       |
 | Productos        | `/products` | ✅     | CRUD `/api/products` + `/api/extras`, `/api/sizes` |
 | Establecimientos | `/stores`   | ✅     | CRUD `/api/stores` + `/api/clients/{id}/stores` |
+| Auditoría       | `/audit`    | ✅     | `GET /api/audit` (ADMIN tenant; SUPERADMIN en `/superadmin` › Auditoría) |
 | Caja (POS)       | `/pos`      | placeholder | `POST /api/orders` (CASH/CARD)              |
 | Kiosko           | `/kiosk`    | placeholder | `POST /api/orders` (solo CARD; sesión de kiosko ligada al establecimiento) |
 | Cocina (KDS)     | `/kitchen`  | placeholder | `GET /api/orders?storeId=&status=` + PATCH  |
@@ -62,7 +63,7 @@ sin prefijo en la URL):
 ## Contrato de API
 
 Referencia completa: [07-api](07-api.md). Durante desarrollo también sirve
-Swagger UI en `http://localhost:8080/swagger-ui.html`.
+Swagger UI en `http://localhost:8080/swagger-ui.html` — desde HP-SEC-03 requiere JWT de SUPERADMIN (los demas roles reciben 403).
 
 ## Estado del backend para soportar el frontend
 

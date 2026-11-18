@@ -1,5 +1,6 @@
 package com.store.platform.client;
 
+import com.store.platform.audit.AuditService;
 import com.store.platform.client.dto.ClientAdminRequest;
 import com.store.platform.client.dto.ClientAdminResponse;
 import com.store.platform.client.dto.ClientRequest;
@@ -21,7 +22,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +33,29 @@ public class ClientService {
     private final ClientRepository clientRepository;
     private final UserRepository userRepository;
     private final StorageService storageService;
+    private final AuditService auditService;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
+
+    private static Map<String, Object> planSnapshot(Client c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", c.getName());
+        m.put("maxStores", c.getMaxStores());
+        m.put("maxPosPerStore", c.getMaxPosPerStore());
+        m.put("maxKiosksPerStore", c.getMaxKiosksPerStore());
+        return m;
+    }
+
+    private static Map<String, Object> settingsSnapshot(Client c) {
+        Map<String, Object> m = new LinkedHashMap<>();
+        m.put("name", c.getName());
+        m.put("currency", c.getCurrency());
+        m.put("taxRate", c.getTaxRate());
+        m.put("tokenPrice", c.getTokenPrice());
+        m.put("kioskReceiptSeconds", c.getKioskReceiptSeconds());
+        m.put("timezone", c.getTimezone());
+        m.put("sessionHours", c.getSessionHours());
+        return m;
+    }
 
     @Transactional
     public ClientResponse create(ClientRequest request) {
@@ -44,6 +69,8 @@ public class ClientService {
         if (request.adminEmail() != null && !request.adminEmail().isBlank()) {
             createAdmin(saved, request);
         }
+        auditService.recordFor(saved.getId(), null, "client", "create",
+                saved.getId(), saved.getName(), planSnapshot(saved));
         return ClientResponse.from(saved);
     }
 
@@ -82,11 +109,15 @@ public class ClientService {
     @Transactional
     public ClientResponse update(Long id, ClientRequest request) {
         Client client = findOrThrow(id);
+        Map<String, Object> before = planSnapshot(client);
         client.setName(request.name());
         client.setMaxStores(request.maxStores());
         client.setMaxPosPerStore(request.maxPosPerStore());
         client.setMaxKiosksPerStore(request.maxKiosksPerStore());
-        return ClientResponse.from(clientRepository.save(client));
+        Client saved = clientRepository.save(client);
+        auditService.recordFor(id, null, "client", "update",
+                saved.getId(), saved.getName(), AuditService.diff(before, planSnapshot(saved)));
+        return ClientResponse.from(saved);
     }
 
     public ClientSettingsResponse getSettings(Long id) {
@@ -96,6 +127,7 @@ public class ClientService {
     @Transactional
     public ClientSettingsResponse updateSettings(Long id, ClientSettingsRequest request) {
         Client client = findOrThrow(id);
+        Map<String, Object> before = settingsSnapshot(client);
         if (request.name() != null && !request.name().isBlank()) {
             client.setName(request.name().trim());
         }
@@ -135,7 +167,10 @@ public class ClientService {
             }
             client.setTimezone(request.timezone());
         }
-        return ClientSettingsResponse.from(clientRepository.save(client));
+        Client saved = clientRepository.save(client);
+        auditService.recordFor(id, null, "client", "settings",
+                saved.getId(), saved.getName(), AuditService.diff(before, settingsSnapshot(saved)));
+        return ClientSettingsResponse.from(saved);
     }
 
     private static final java.util.Set<String> TENANT_ROLES =
@@ -161,13 +196,23 @@ public class ClientService {
             throw new DuplicateResourceException("EMAIL_TAKEN", "Email already registered: " + email,
                     java.util.Map.of("email", email));
         }
+        Map<String, Object> before = new LinkedHashMap<>();
+        before.put("name", admin.getName());
+        before.put("email", admin.getEmail());
         admin.setName(request.adminName().trim());
         admin.setEmail(email);
-        if (request.adminPassword() != null && !request.adminPassword().isBlank()) {
+        boolean passwordChanged = request.adminPassword() != null && !request.adminPassword().isBlank();
+        if (passwordChanged) {
             admin.setPassword(passwordEncoder.encode(request.adminPassword()));
             admin.revokeTokens();
         }
-        return ClientAdminResponse.from(userRepository.save(admin));
+        User saved = userRepository.save(admin);
+        Map<String, Object> changes = AuditService.diff(before, Map.of(
+                "name", saved.getName(), "email", saved.getEmail()));
+        changes.put("passwordReset", passwordChanged);
+        auditService.recordFor(id, null, "user", "update",
+                saved.getId(), saved.getName(), changes);
+        return ClientAdminResponse.from(saved);
     }
 
     /** El admin "principal" del tenant (el primero creado). */

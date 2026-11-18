@@ -57,7 +57,7 @@ export JWT_SECRET="$(openssl rand -base64 48)"
 ```
 
 - API: http://localhost:8080
-- Swagger UI: http://localhost:8080/swagger-ui.html
+- Swagger UI: http://localhost:8080/swagger-ui.html (requiere JWT SUPERADMIN)
 
 ## Tests
 

@@ -1,6 +1,9 @@
 package com.store.platform.token;
 
 import com.store.platform.client.Client;
+import com.store.platform.audit.AuditService;
+import com.store.platform.client.ClientService;
+import com.store.platform.user.UserRepository;
 import com.store.platform.order.Order;
 import com.store.platform.security.AuthUser;
 import com.store.platform.store.Store;
@@ -34,6 +37,9 @@ class TokenServiceTest {
     @Mock TokenSaleRepository tokenSaleRepository;
     @Mock StoreRepository storeRepository;
     @Mock StoreService storeService;
+    @Mock UserRepository userRepository;
+    @Mock ClientService clientService;
+    @Mock AuditService auditService;
     @InjectMocks TokenService tokenService;
 
     private final Store store = Store.builder().id(1L)
