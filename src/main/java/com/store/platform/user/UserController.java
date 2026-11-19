@@ -2,6 +2,8 @@ package com.store.platform.user;
 
 import com.store.platform.auth.dto.StoreOption;
 import com.store.platform.security.AuthContext;
+import com.store.platform.module.ModuleService;
+import com.store.platform.module.dto.ModulesRequest;
 import com.store.platform.user.dto.ActiveRequest;
 import com.store.platform.user.dto.PasswordRequest;
 import com.store.platform.user.dto.UserRequest;
@@ -23,6 +25,7 @@ import java.util.List;
 public class UserController {
 
     private final UserService userService;
+    private final ModuleService moduleService;
 
     /** Tiendas visibles del usuario logueado (selector multi-tienda del KDS). */
     @GetMapping("/me/stores")
@@ -59,6 +62,16 @@ public class UserController {
     @PreAuthorize("hasRole('ADMIN')")
     public UserResponse update(@PathVariable Long id, @Valid @RequestBody UserUpdateRequest request) {
         return userService.update(id, request);
+    }
+
+    /** ADMIN del tenant: asigna módulos al usuario — siempre ⊆ los que el
+     *  cliente compró (user_modules ⊆ client_modules). */
+    @PutMapping("/{id}/modules")
+    @PreAuthorize("hasRole('ADMIN')")
+    public List<String> setModules(@PathVariable Long id,
+                                   @Valid @RequestBody ModulesRequest request) {
+        return ModuleService.names(moduleService.setUserModules(
+                id, request.toModules(), AuthContext.current().clientId()));
     }
 
     @PatchMapping("/{id}/active")

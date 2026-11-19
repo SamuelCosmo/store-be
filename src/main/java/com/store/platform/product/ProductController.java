@@ -20,7 +20,7 @@ public class ProductController {
     private final ProductService productService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ResponseEntity<ProductResponse> create(@Valid @RequestBody ProductRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(productService.create(request));
     }
@@ -50,33 +50,33 @@ public class ProductController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ProductResponse update(@PathVariable Long id, @Valid @RequestBody ProductRequest request) {
         return productService.update(id, request);
     }
 
     @PatchMapping("/{id}/active")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ProductResponse setActive(@PathVariable Long id, @Valid @RequestBody ActiveRequest request) {
         return productService.setActive(id, request.active());
     }
 
     /** "86'd" toggle — POS staff included: a cashier can mark an item as gone mid-shift. */
     @PatchMapping("/{id}/sold-out")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE') and hasAnyAuthority('MODULE_POS','MODULE_CATALOG')")
     public ProductResponse setSoldOut(@PathVariable Long id, @Valid @RequestBody SoldOutRequest request) {
         return productService.setSoldOut(id, request.soldOut());
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         productService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/restore")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ProductResponse restore(@PathVariable Long id) {
         return productService.restore(id);
     }

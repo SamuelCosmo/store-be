@@ -7,6 +7,8 @@ import com.store.platform.client.dto.ClientResponse;
 import com.store.platform.client.dto.ClientSettingsRequest;
 import com.store.platform.client.dto.ClientSettingsResponse;
 import com.store.platform.security.AuthContext;
+import com.store.platform.module.ModuleService;
+import com.store.platform.module.dto.ModulesRequest;
 import com.store.platform.store.StoreService;
 import com.store.platform.store.dto.StoreResponse;
 import jakarta.validation.Valid;
@@ -27,6 +29,7 @@ public class ClientController {
 
     private final ClientService clientService;
     private final StoreService storeService;
+    private final ModuleService moduleService;
 
     /** Plataforma (superadmin): alta de tenant — con admin opcional en el request. */
     @PostMapping
@@ -63,6 +66,14 @@ public class ClientController {
     public ClientAdminResponse updateAdmin(@PathVariable Long id,
                                            @Valid @RequestBody ClientAdminRequest request) {
         return clientService.updateAdmin(id, request);
+    }
+
+    /** Plataforma (superadmin): fija los módulos contratados del tenant. */
+    @PutMapping("/{id}/modules")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public List<String> setModules(@PathVariable Long id,
+                                   @Valid @RequestBody ModulesRequest request) {
+        return ModuleService.names(moduleService.setClientModules(id, request.toModules()));
     }
 
     @GetMapping("/{id}")

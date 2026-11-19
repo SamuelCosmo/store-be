@@ -19,7 +19,7 @@ public class ExtraController {
     private final ExtraService extraService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ResponseEntity<ExtraResponse> create(@Valid @RequestBody ExtraRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(extraService.create(request));
     }
@@ -30,20 +30,20 @@ public class ExtraController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ExtraResponse update(@PathVariable Long id, @Valid @RequestBody ExtraRequest request) {
         return extraService.update(id, request);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         extraService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/restore")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ExtraResponse restore(@PathVariable Long id) {
         return extraService.restore(id);
     }

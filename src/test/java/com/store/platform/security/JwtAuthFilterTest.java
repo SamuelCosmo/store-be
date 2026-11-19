@@ -1,6 +1,7 @@
 package com.store.platform.security;
 
 import com.store.platform.client.Client;
+import com.store.platform.module.Module;
 import com.store.platform.user.User;
 import com.store.platform.user.UserRepository;
 import io.jsonwebtoken.Jwts;
@@ -17,9 +18,11 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.Mockito.mock;
@@ -87,5 +90,25 @@ class JwtAuthFilterTest {
                 .signWith(Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8)))
                 .compact();
         assertFalse(authenticates(token));
+    }
+
+    @Test
+    void responseExposesFreshEffectiveModulesHeader() throws Exception {
+        String token = jwtService.generate(user, 1L);
+        user.setModules(EnumSet.of(Module.POS, Module.TOKENS));
+
+        MockHttpServletRequest req = new MockHttpServletRequest();
+        req.addHeader("Authorization", "Bearer " + token);
+        MockHttpServletResponse res = new MockHttpServletResponse();
+        filter.doFilter(req, res, new MockFilterChain());
+
+        assertEquals("POS,TOKENS", res.getHeader("X-Effective-Modules"));
+
+        // Revocación en caliente con el mismo JWT sin re-login
+        user.setModules(EnumSet.of(Module.POS));
+        MockHttpServletResponse res2 = new MockHttpServletResponse();
+        filter.doFilter(req, res2, new MockFilterChain());
+
+        assertEquals("POS", res2.getHeader("X-Effective-Modules"));
     }
 }

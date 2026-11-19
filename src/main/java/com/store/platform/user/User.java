@@ -1,12 +1,14 @@
 package com.store.platform.user;
 
 import com.store.platform.client.Client;
+import com.store.platform.module.Module;
 import com.store.platform.store.Store;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.BatchSize;
 
 import java.time.Instant;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -50,6 +52,17 @@ public class User {
             inverseJoinColumns = @JoinColumn(name = "store_id"))
     @Builder.Default
     private Set<Store> stores = new HashSet<>();
+
+    /** Módulos asignados por el ADMIN del tenant — siempre ⊆ client.modules
+     *  (los módulos que el cliente compró). ADMIN ignora esta asignación:
+     *  opera con todos los módulos del cliente. */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "user_modules",
+            joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "module", nullable = false, length = 32)
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private Set<Module> modules = EnumSet.noneOf(Module.class);
 
     /** Existing rows get true via column default (ddl-auto update). */
     @Column(nullable = false, columnDefinition = "boolean not null default true")

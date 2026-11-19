@@ -19,7 +19,7 @@ public class SizeController {
     private final SizeService sizeService;
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ResponseEntity<SizeResponse> create(@Valid @RequestBody SizeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(sizeService.create(request));
     }
@@ -30,26 +30,26 @@ public class SizeController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public SizeResponse update(@PathVariable Long id, @Valid @RequestBody SizeRequest request) {
         return sizeService.update(id, request);
     }
 
     @PutMapping("/order")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public List<SizeResponse> reorder(@RequestBody List<Long> orderedIds) {
         return sizeService.reorder(orderedIds);
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public ResponseEntity<Void> delete(@PathVariable Long id) {
         sizeService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/restore")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_CATALOG')")
     public SizeResponse restore(@PathVariable Long id) {
         return sizeService.restore(id);
     }

@@ -75,6 +75,7 @@ public class UserService {
                 .password(passwordEncoder.encode(request.password()))
                 .role(request.role())
                 .stores(resolveStores(clientId, request.storeIds()))
+                .modules(new java.util.HashSet<>(com.store.platform.module.ModuleService.purchasedModules(client)))
                 .build();
         User saved = userRepository.save(user);
         auditService.recordFor(clientId, null, "user", "create",

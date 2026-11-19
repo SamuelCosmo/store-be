@@ -11,6 +11,7 @@ import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.DuplicateResourceException;
 import com.store.platform.common.exception.RateLimitException;
 import com.store.platform.common.exception.ResourceNotFoundException;
+import com.store.platform.module.ModuleService;
 import com.store.platform.security.JwtService;
 import com.store.platform.store.Store;
 import com.store.platform.store.StoreRepository;
@@ -174,6 +175,7 @@ public class AuthService {
                 client == null ? null : client.getId(),
                 client == null ? null : client.getName(),
                 client == null ? null : client.getLogoUrl(),
-                storeId);
+                storeId,
+                ModuleService.names(ModuleService.effectiveModules(user)));
     }
 }

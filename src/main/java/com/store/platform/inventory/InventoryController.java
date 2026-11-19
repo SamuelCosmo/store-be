@@ -20,7 +20,7 @@ public class InventoryController {
     }
 
     @PutMapping("/{productId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_INVENTORY')")
     public InventoryResponse set(@PathVariable Long productId,
                                  @Valid @RequestBody InventoryRequest request) {
         return inventoryService.set(productId, request);

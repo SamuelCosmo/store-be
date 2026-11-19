@@ -424,10 +424,36 @@ PATCH  /api/reservations/{id}/status         # CONFIRMED/SEATED/CANCELLED/NO_SHO
 **Reglas:** la barra son 6 sillas (`zone=BAR`); no se permiten reservaciones
 solapadas sobre la misma mesa/silla.
 
-## Módulos por cliente *(pendiente de implementar)*
+## Módulos por cliente ✅ *(HP-MT-01)*
+
+Catálogo: `CATALOG, INVENTORY, POS, KIOSK, KDS, BAR, TOKENS, REPORTS,
+TICKETS, RESERVATIONS` (`GET /api/modules` los lista a cualquier
+autenticado). Reglas (docs/13): `client_modules` = lo que la plataforma
+vendió; `user_modules ⊆ client_modules` = lo que el ADMIN asigna.
+`GET /api/modules/available` devuelve los contratados del tenant actual.
 
 ```text
-PUT    /api/clients/{id}/modules   # plataforma: módulos contratados
-PUT    /api/users/{id}/modules     # admin: subconjunto ⊆ client_modules
-GET    /api/modules/available
+PUT    /api/clients/{id}/modules   # SUPERADMIN: módulos contratados {modules:[...]}
+PUT    /api/users/{id}/modules     # ADMIN: asignación ⊆ client_modules {modules:[...]}
+GET    /api/modules                # catálogo completo
+GET    /api/modules/me             # efectivos del usuario actual
+GET    /api/modules/available      # ADMIN: contratados del tenant propio
 ```
+
+- Ambos PUT exigen ≥1 módulo (`MODULES_REQUIRED`) y devuelven `List<String>`.
+- `PUT /api/users/{id}/modules` responde 404 si el usuario es de otro
+  tenant y `MODULE_NOT_PURCHASED` si se pide un módulo no contratado.
+- Los módulos llegan al front en `AuthResponse.modules` (efectivos),
+  `UserResponse.modules`, `ClientResponse.modules` (contratados) y en el
+  header `X-Effective-Modules` de cada respuesta autenticada (sincronización
+  en caliente sin re-login).
+- Enforcement: `JwtAuthFilter` agrega authorities `MODULE_<NAME>` por
+  request (frescos desde DB, sin claims stale en el JWT); los controllers
+  combinan `hasRole(...)` con `hasAuthority('MODULE_X')`. Roles: ADMIN →
+  todos los del cliente; demás roles → `user_modules ∩ client_modules`;
+  SUPERADMIN → todos.
+- **Convención legacy**: colección vacía = "nunca configurado" → equivale
+  al catálogo completo. Los PUT rechazan vacío, así que no hay ambigüedad
+  y no hace falta backfill.
+- Auditoría: cada cambio de módulos registra evento `client|user /
+  modules` con el detalle.

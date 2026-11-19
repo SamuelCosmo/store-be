@@ -1,5 +1,6 @@
 package com.store.platform.user.dto;
 
+import com.store.platform.module.ModuleService;
 import com.store.platform.store.Store;
 import com.store.platform.user.User;
 
@@ -12,7 +13,9 @@ public record UserResponse(
         String email,
         User.Role role,
         boolean active,
-        List<Long> storeIds) {
+        List<Long> storeIds,
+        /** Módulos asignados (user_modules) — el admin los edita por usuario. */
+        List<String> modules) {
 
     public static UserResponse from(User user) {
         return new UserResponse(
@@ -22,6 +25,7 @@ public record UserResponse(
                 user.getEmail(),
                 user.getRole(),
                 user.isActive(),
-                user.getStores().stream().map(Store::getId).sorted().toList());
+                user.getStores().stream().map(Store::getId).sorted().toList(),
+                ModuleService.names(ModuleService.effectiveModules(user)));
     }
 }

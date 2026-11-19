@@ -1,5 +1,6 @@
 package com.store.platform.client;
 
+import com.store.platform.module.Module;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -8,7 +9,9 @@ import org.hibernate.type.SqlTypes;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.ZoneId;
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.Set;
 
 @Entity
 @Table(name = "clients")
@@ -38,6 +41,16 @@ public class Client {
 
     @Column(nullable = false)
     private Integer maxKiosksPerStore;
+
+    /** Módulos contratados por el tenant (la plataforma los activa).
+     *  user_modules ⊆ client_modules — ver docs/13-modules-and-permissions. */
+    @ElementCollection(fetch = FetchType.LAZY)
+    @CollectionTable(name = "client_modules",
+            joinColumns = @JoinColumn(name = "client_id"))
+    @Column(name = "module", nullable = false, length = 32)
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    private Set<Module> modules = EnumSet.noneOf(Module.class);
 
     // Client-level settings (null = use defaults in ClientSettingsResponse)
     @Column(length = 3)

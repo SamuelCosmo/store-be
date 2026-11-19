@@ -22,7 +22,7 @@ public class TokenController {
 
     /** Venta de fichas — solo caja (staff con tienda activa), nunca kiosco. */
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE') and hasAuthority('MODULE_TOKENS')")
     public ResponseEntity<TokenSaleResponse> purchase(
             @Valid @RequestBody TokenSaleRequest request,
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey) {
@@ -30,7 +30,7 @@ public class TokenController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER','EMPLOYEE') and hasAuthority('MODULE_TOKENS')")
     public List<TokenSaleResponse> list(
             @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

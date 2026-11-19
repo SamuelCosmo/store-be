@@ -19,7 +19,7 @@ public class ReportController {
     private final ReportService reportService;
 
     @GetMapping("/dashboard")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER') and hasAuthority('MODULE_REPORTS')")
     public DashboardResponse dashboard(
             @RequestParam(required = false) Long storeId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

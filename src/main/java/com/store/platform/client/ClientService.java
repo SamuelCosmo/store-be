@@ -64,6 +64,7 @@ public class ClientService {
                 .maxStores(request.maxStores())
                 .maxPosPerStore(request.maxPosPerStore())
                 .maxKiosksPerStore(request.maxKiosksPerStore())
+                .modules(java.util.EnumSet.allOf(com.store.platform.module.Module.class))
                 .build();
         Client saved = clientRepository.save(client);
         if (request.adminEmail() != null && !request.adminEmail().isBlank()) {
@@ -96,11 +97,13 @@ public class ClientService {
                 .build());
     }
 
+    @Transactional(readOnly = true)
     public ClientResponse getById(Long id) {
         return ClientResponse.from(findOrThrow(id));
     }
 
     /** Plataforma: todos los tenants. */
+    @Transactional(readOnly = true)
     public List<ClientResponse> list() {
         return clientRepository.findAll().stream().map(ClientResponse::from).toList();
     }

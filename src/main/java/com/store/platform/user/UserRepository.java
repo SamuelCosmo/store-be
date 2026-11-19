@@ -16,7 +16,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByEmailIgnoreCaseAndDeletedAtIsNull(String email);
 
     /** JwtAuthFilter: estado actual + sessionHours del tenant en un query. */
-    @EntityGraph(attributePaths = "client")
+    @EntityGraph(attributePaths = {"client", "modules", "client.modules"})
     Optional<User> findWithClientById(Long id);
 
     /** El admin "principal" del tenant (el primero creado). */
