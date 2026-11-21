@@ -83,6 +83,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         if (user.getRole() != parsed.user().role()) return "role changed";
         // SUPERADMIN no tiene tenant → solo aplica el `exp` del JWT
         if (user.getClient() != null) {
+            if (!user.getClient().isActive()) return "client suspended";
             int hours = ClientSettingsResponse.sessionHoursFor(user.getClient(), user.getRole().name());
             if (hours > 0 && parsed.issuedAt().plus(Duration.ofHours(hours)).isBefore(Instant.now())) {
                 return "session expired (" + hours + "h for " + user.getRole() + ")";

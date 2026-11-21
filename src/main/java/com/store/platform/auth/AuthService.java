@@ -52,6 +52,9 @@ public class AuthService {
     public AuthResponse register(RegisterRequest request) {
         Client client = clientRepository.findById(request.clientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Client not found: " + request.clientId()));
+        if (!client.isActive()) {
+            throw new BusinessException("CLIENT_SUSPENDED", "Client account is suspended");
+        }
         if (userRepository.existsByClientIdAndDeletedAtIsNull(client.getId())) {
             throw new BusinessException("CLIENT_HAS_USERS", "Client already has users — ask your ADMIN to create your account");
         }
@@ -80,6 +83,7 @@ public class AuthService {
             log.warn("Login rejected: superadmin on tenant login userId={}", user.getId());
             throw new BadCredentialsException("Invalid credentials");
         }
+        requireActiveClient(user);
         Long storeId = resolveStore(user, request.storeId());
         log.info("Login ok userId={} role={} clientId={} storeId={}",
                 user.getId(), user.getRole(), user.getClient().getId(), storeId);
@@ -129,10 +133,19 @@ public class AuthService {
     @Transactional(readOnly = true)
     public List<StoreOption> storesForLogin(LoginRequest request, String ip) {
         User user = authenticate(request, ip);
+        requireActiveClient(user);
         return user.getStores().stream()
                 .filter(s -> s.getDeletedAt() == null)
                 .map(StoreOption::from)
                 .toList();
+    }
+
+    private void requireActiveClient(User user) {
+        if (user.getClient() != null && !user.getClient().isActive()) {
+            log.warn("Login rejected: client suspended userId={} clientId={}",
+                    user.getId(), user.getClient().getId());
+            throw new BusinessException("CLIENT_SUSPENDED", "Client account is suspended");
+        }
     }
 
     private Long resolveStore(User user, Long requestedStoreId) {

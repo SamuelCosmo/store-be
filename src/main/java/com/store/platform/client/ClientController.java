@@ -6,6 +6,7 @@ import com.store.platform.client.dto.ClientRequest;
 import com.store.platform.client.dto.ClientResponse;
 import com.store.platform.client.dto.ClientSettingsRequest;
 import com.store.platform.client.dto.ClientSettingsResponse;
+import com.store.platform.client.dto.ClientStatusRequest;
 import com.store.platform.security.AuthContext;
 import com.store.platform.module.ModuleService;
 import com.store.platform.module.dto.ModulesRequest;
@@ -66,6 +67,14 @@ public class ClientController {
     public ClientAdminResponse updateAdmin(@PathVariable Long id,
                                            @Valid @RequestBody ClientAdminRequest request) {
         return clientService.updateAdmin(id, request);
+    }
+
+    /** Plataforma (superadmin): suspende o reactiva un tenant. */
+    @PatchMapping("/{id}/active")
+    @PreAuthorize("hasRole('SUPERADMIN')")
+    public ClientResponse setActive(@PathVariable Long id,
+                                    @Valid @RequestBody ClientStatusRequest request) {
+        return clientService.setActive(id, request);
     }
 
     /** Plataforma (superadmin): fija los módulos contratados del tenant. */

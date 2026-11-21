@@ -66,6 +66,10 @@ PUT    /api/clients/{id}/admin  # SUPERADMIN — {adminName, adminEmail,
                                 #  adminPassword?, superadminPassword} — exige
                                 #  la contraseña del superadmin; la nueva del
                                 #  admin valida las mismas reglas de usuarios
+PATCH  /api/clients/{id}/active # SUPERADMIN — {active, superadminPassword}
+                                #  suspende/reactiva el tenant sin borrar datos;
+                                #  bloquea login (CLIENT_SUSPENDED) y sesiones
+                                #  abiertas al instante (401 en JwtAuthFilter)
 GET    /api/clients/{id}
 GET    /api/clients/{id}/stores
 GET    /api/clients/{id}/settings   # settings del cliente (todos los roles del tenant)

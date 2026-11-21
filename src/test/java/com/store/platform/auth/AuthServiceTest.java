@@ -1,8 +1,10 @@
 package com.store.platform.auth;
 
 import com.store.platform.auth.dto.LoginRequest;
+import com.store.platform.client.Client;
 import com.store.platform.client.ClientRepository;
 import com.store.platform.common.RateLimiter;
+import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.RateLimitException;
 import com.store.platform.security.JwtService;
 import com.store.platform.store.StoreRepository;
@@ -20,6 +22,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.when;
 
@@ -32,13 +35,15 @@ class AuthServiceTest {
     @Mock JwtService jwtService;
 
     private AuthService authService;
+    private Client client;
 
     @BeforeEach
     void setUp() {
         authService = new AuthService(
                 userRepository, clientRepository, storeRepository, jwtService, new RateLimiter());
+        client = Client.builder().id(1L).name("Kofi").active(true).build();
         User user = User.builder()
-                .id(9L).email("ana@test.com").active(true)
+                .id(9L).client(client).email("ana@test.com").active(true)
                 .password(new BCryptPasswordEncoder().encode("secreta"))
                 .role(User.Role.EMPLOYEE).stores(Set.of()).build();
         when(userRepository.findByEmailIgnoreCaseAndDeletedAtIsNull("ana@test.com"))
@@ -89,5 +94,17 @@ class AuthServiceTest {
                 () -> authService.storesForLogin(req("secreta"), "9.9.9.9"));
         // otra IP del mismo correo sí entra — el bloqueo de correo fue de 5, no 30
         assertDoesNotThrow(() -> authService.storesForLogin(req("secreta"), "8.8.8.8"));
+    }
+
+    @Test
+    void suspendedClientBlocksLoginAndStoreLookup() {
+        client.setActive(false);
+        BusinessException ex1 = assertThrows(BusinessException.class,
+                () -> authService.login(req("secreta"), "1.2.3.4"));
+        assertEquals("CLIENT_SUSPENDED", ex1.getCode());
+
+        BusinessException ex2 = assertThrows(BusinessException.class,
+                () -> authService.storesForLogin(req("secreta"), "1.2.3.4"));
+        assertEquals("CLIENT_SUSPENDED", ex2.getCode());
     }
 }

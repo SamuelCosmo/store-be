@@ -42,6 +42,14 @@ public class Client {
     @Column(nullable = false)
     private Integer maxKiosksPerStore;
 
+    /** false = tenant suspendido por la plataforma (bloquea login y sesiones,
+     *  sin borrar datos). */
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean active = true;
+
+    private Instant suspendedAt;
+
     /** Módulos contratados por el tenant (la plataforma los activa).
      *  user_modules ⊆ client_modules — ver docs/13-modules-and-permissions. */
     @ElementCollection(fetch = FetchType.LAZY)

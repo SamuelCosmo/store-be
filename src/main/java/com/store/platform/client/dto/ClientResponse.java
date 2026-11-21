@@ -12,6 +12,8 @@ public record ClientResponse(
         Integer maxStores,
         Integer maxPosPerStore,
         Integer maxKiosksPerStore,
+        boolean active,
+        Instant suspendedAt,
         /** Módulos contratados del tenant — la plataforma los edita. */
         List<String> modules,
         Instant createdAt) {
@@ -23,6 +25,8 @@ public record ClientResponse(
                 client.getMaxStores(),
                 client.getMaxPosPerStore(),
                 client.getMaxKiosksPerStore(),
+                client.isActive(),
+                client.getSuspendedAt(),
                 ModuleService.names(ModuleService.purchasedModules(client)),
                 client.getCreatedAt());
     }

@@ -77,6 +77,13 @@ class JwtAuthFilterTest {
     }
 
     @Test
+    void suspendedClientTokenIsRejected() throws Exception {
+        String token = jwtService.generate(user, 1L);
+        user.getClient().setActive(false);
+        assertFalse(authenticates(token));
+    }
+
+    @Test
     void tokenOlderThanRoleSessionHoursIsRejected() throws Exception {
         // emitido hace 9h, EMPLOYEE tiene 8h configuradas en el tenant
         Instant issued = Instant.now().minus(9, ChronoUnit.HOURS);

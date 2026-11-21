@@ -57,18 +57,14 @@ Client (tenant: restaurante, café, etc.)
 > **Nota de implementación:** `customers` se modela como `users` con rol
 > `CUSTOMER`. Si más adelante se separan, se crea la tabla `customers` propia.
 
-> **CHECKs de enums:** Hibernate (`ddl-auto: update`) genera constraints
-> `CHECK` con los valores del enum (ej. `users_role_check`). Al agregar un
-> valor nuevo al enum hay que actualizar el constraint a mano — `update`
-> no altera constraints existentes:
-> `ALTER TABLE users DROP CONSTRAINT users_role_check;` + `ADD ... CHECK
-> (role = ANY (...))` incluyendo el valor nuevo.
->
-> **Lo mismo para `NOT NULL`:** `update` tampoco quita nullability — al
-> hacer `users.client_id` nullable (rol `SUPERADMIN`) hay que correr en
-> DBs existentes (incluida producción/Railway):
-> `ALTER TABLE users ALTER COLUMN client_id DROP NOT NULL;`
-> En una DB nueva ambos constraints ya nacen correctos.
+> **Migraciones formales (Flyway + `ddl-auto: validate`):** el esquema vive
+> en `src/main/resources/db/migration/V<N>__<descripcion>.sql` (`V1__baseline.sql`,
+> `V2__client_suspension.sql`, ...). `baseline-on-migrate: true` con
+> `baseline-version: 0` adopta automáticamente bases pre-Flyway sin perder
+> datos, mientras que Hibernate corre en `ddl-auto: validate` y falla al
+> arrancar si alguna `@Entity` diverge de las migraciones. Todo cambio de
+> esquema requiere un archivo `V<N+1>__...sql` en el mismo commit (nunca
+> editar migraciones ya aplicadas).
 
 ## Relaciones clave
 

@@ -7,6 +7,7 @@ import com.store.platform.client.dto.ClientRequest;
 import com.store.platform.client.dto.ClientResponse;
 import com.store.platform.client.dto.ClientSettingsRequest;
 import com.store.platform.client.dto.ClientSettingsResponse;
+import com.store.platform.client.dto.ClientStatusRequest;
 import com.store.platform.common.exception.BusinessException;
 import com.store.platform.common.exception.DuplicateResourceException;
 import com.store.platform.common.exception.ResourceNotFoundException;
@@ -184,15 +185,25 @@ public class ClientService {
         return ClientAdminResponse.from(adminOf(id));
     }
 
+    /** Plataforma: suspende o reactiva un tenant sin tocar sus datos. */
+    @Transactional
+    public ClientResponse setActive(Long id, ClientStatusRequest request) {
+        verifySuperadminPassword(request.superadminPassword());
+        Client client = findOrThrow(id);
+        boolean active = request.active();
+        client.setActive(active);
+        client.setSuspendedAt(active ? null : java.time.Instant.now());
+        Client saved = clientRepository.save(client);
+        auditService.recordFor(id, null, "client", active ? "activate" : "suspend",
+                saved.getId(), saved.getName(), null);
+        return ClientResponse.from(saved);
+    }
+
     /** Plataforma: editar nombre/correo del admin y opcionalmente resetear
      *  su contraseña. Requiere la contraseña del superadmin logueado. */
     @Transactional
     public ClientAdminResponse updateAdmin(Long id, ClientAdminRequest request) {
-        User self = userRepository.findById(AuthContext.current().userId())
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        if (!passwordEncoder.matches(request.superadminPassword(), self.getPassword())) {
-            throw new BadCredentialsException("Invalid credentials");
-        }
+        verifySuperadminPassword(request.superadminPassword());
         User admin = adminOf(id);
         String email = UserService.normalizeEmail(request.adminEmail());
         if (userRepository.existsByEmailIgnoreCaseAndIdNotAndDeletedAtIsNull(email, admin.getId())) {
@@ -216,6 +227,14 @@ public class ClientService {
         auditService.recordFor(id, null, "user", "update",
                 saved.getId(), saved.getName(), changes);
         return ClientAdminResponse.from(saved);
+    }
+
+    private void verifySuperadminPassword(String rawPassword) {
+        User self = userRepository.findById(AuthContext.current().userId())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        if (!passwordEncoder.matches(rawPassword, self.getPassword())) {
+            throw new BadCredentialsException("Invalid credentials");
+        }
     }
 
     /** El admin "principal" del tenant (el primero creado). */
