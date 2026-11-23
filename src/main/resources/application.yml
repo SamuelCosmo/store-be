@@ -42,6 +42,9 @@ app:
   logs:
     # días que se conservan en app_logs (pantalla de SUPERADMIN); purga diaria 04:15
     retention-days: ${LOG_RETENTION_DAYS:30}
+  audit:
+    # días que se conservan en audit_events (máximo 180 = 6 meses); purga diaria 04:30
+    retention-days: ${AUDIT_RETENTION_DAYS:180}
 
 logging:
   pattern:

@@ -7,12 +7,16 @@ import com.store.platform.security.AuthUser;
 import com.store.platform.store.StoreRepository;
 import com.store.platform.user.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,6 +26,7 @@ import java.util.Objects;
  *  dentro de la misma transacción — si la operación hace rollback, el evento
  *  también (nunca queda audit de algo que no pasó). Cubre datos maestros y
  *  acciones sensibles; las ventas/órdenes ya viven en sus propias tablas. */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AuditService {
@@ -30,6 +35,11 @@ public class AuditService {
     private final UserRepository userRepository;
     private final ClientRepository clientRepository;
     private final StoreRepository storeRepository;
+
+    public static final int MAX_RETENTION_DAYS = 180;
+
+    @Value("${app.audit.retention-days:180}")
+    private int retentionDays = MAX_RETENTION_DAYS;
 
     /** Evento con el scope del JWT (clientId/storeId del token). */
     public void record(String entityType, String action, Long entityId,
@@ -96,5 +106,21 @@ public class AuditService {
                 : pageable;
         return auditEventRepository.search(scope, entityType, action, storeId, from, to, sorted)
                 .map(AuditEventResponse::from);
+    }
+
+    /** Purga diaria (04:30) de eventos antiguos — tope máximo de 6 meses (180d). */
+    @Scheduled(cron = "0 30 4 * * *")
+    @Transactional
+    public void purgeExpired() {
+        int days = retentionDays <= 0 ? MAX_RETENTION_DAYS : Math.min(retentionDays, MAX_RETENTION_DAYS);
+        int deleted = auditEventRepository.deleteOlderThan(
+                Instant.now().minus(Duration.ofDays(days)));
+        if (deleted > 0) {
+            log.info("Purged {} expired audit events (> {}d)", deleted, days);
+        }
+    }
+
+    void setRetentionDays(int retentionDays) {
+        this.retentionDays = retentionDays;
     }
 }

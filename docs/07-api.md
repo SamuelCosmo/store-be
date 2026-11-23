@@ -405,6 +405,8 @@ si la operación hace rollback, el evento también desaparece.
   nunca contiene passwords, tokens ni secretos.
 - El actor viaja como snapshot (`actorId`/`actorName`/`actorEmail`/
   `actorRole`) — el historial sobrevive a cambios o baja del usuario.
+- Retención automática: purga diaria (04:30) de eventos anteriores a
+  `AUDIT_RETENTION_DAYS` (default y tope máximo `180` días = 6 meses).
 
 ## Bar *(pendiente de implementar)*
 

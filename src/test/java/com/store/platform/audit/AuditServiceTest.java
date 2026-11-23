@@ -166,4 +166,30 @@ class AuditServiceTest {
         assertEquals(org.springframework.data.domain.Sort.Direction.DESC,
                 captor.getValue().getSort().getOrderFor("createdAt").getDirection());
     }
+
+    @Test
+    void purgeDeletesEventsOlderThanRetentionDays() {
+        auditService.setRetentionDays(90);
+        when(auditEventRepository.deleteOlderThan(any())).thenReturn(4);
+
+        auditService.purgeExpired();
+
+        ArgumentCaptor<java.time.Instant> captor = ArgumentCaptor.forClass(java.time.Instant.class);
+        verify(auditEventRepository).deleteOlderThan(captor.capture());
+        long daysAgo = java.time.Duration.between(captor.getValue(), java.time.Instant.now()).toDays();
+        assertTrue(daysAgo >= 89 && daysAgo <= 91);
+    }
+
+    @Test
+    void purgeCapsRetentionAtSixMonths() {
+        auditService.setRetentionDays(365);
+        when(auditEventRepository.deleteOlderThan(any())).thenReturn(2);
+
+        auditService.purgeExpired();
+
+        ArgumentCaptor<java.time.Instant> captor = ArgumentCaptor.forClass(java.time.Instant.class);
+        verify(auditEventRepository).deleteOlderThan(captor.capture());
+        long daysAgo = java.time.Duration.between(captor.getValue(), java.time.Instant.now()).toDays();
+        assertTrue(daysAgo >= 179 && daysAgo <= 181);
+    }
 }
