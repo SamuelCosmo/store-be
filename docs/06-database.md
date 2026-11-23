@@ -20,12 +20,17 @@ Client (tenant: restaurante, café, etc.)
         │
         ├── Inventory       ← 1:1 con Product
         │
+        ├── Device          ← terminales registradas de la tienda (POS/kiosco)
+        │
         └── Order           ← channel (POS/KIOSK), orderType, paymentMethod
                │              subtotal/taxRate/taxAmount persistidos
                │
                └── OrderItem    ← snapshot: unitPrice, sizeId+sizeName,
                        │          extras (jsonb), notes
                        └── Product
+
+audit_events / app_logs  ← cross-cutting: bitácora de negocio y logs de app
+                           (purga automática diaria)
 ```
 
 ## Tablas
@@ -48,11 +53,15 @@ Client (tenant: restaurante, café, etc.)
 - `order_items`
 - `token_sales` *(venta de fichas físicas en caja — el canje es una orden con
   `payment_method=TOKEN`; ver [12](12-client-extras.md))*
-- `tables` *(mesas y sillas de barra; `zone`: `DINING`/`BAR`)*
-- `reservations` *(reservación de mesas y sillas de barra)*
-- `tickets` *(folio impreso por orden/transacción — opcional)*
+- `devices` *(terminales del establecimiento: tipo, nombre, activa)*
+- `audit_events` *(bitácora de negocio: actor, tenant, store, acción, entidad,
+  diff jsonb — purga automática a los 180 días, `AUDIT_RETENTION_DAYS`)*
+- `app_logs` *(logs de la app en DB; purga diaria vía `LOG_RETENTION_DAYS`)*
 - `client_modules` *(módulos contratados por el cliente; ver [13](13-modules-and-permissions.md))*
 - `user_modules` *(módulos asignados a cada usuario, ⊆ `client_modules`)*
+- `tables` / `reservations` / `tickets` *(**planeadas** — mesas, reservaciones
+  y folio de impresión aún no tienen entidad; el ticket se arma al vuelo
+  desde `orders`)*
 
 > **Nota de implementación:** `customers` se modela como `users` con rol
 > `CUSTOMER`. Si más adelante se separan, se crea la tabla `customers` propia.
@@ -73,12 +82,22 @@ Client (tenant: restaurante, café, etc.)
 | `clients`     | 1:N → `stores` (el cliente tiene varios establecimientos);    |
 |               | `logo_url` — marca del tenant (subida vía                     |
 |               | `POST /api/uploads/brand` → `clients/{id}/brand/` en S3);     |
-|               | `token_price` — precio de venta de la ficha (null/0 = venta   |
-|               | deshabilitada, el POS oculta el botón)                        |
+|               | `active`/`suspended_at` — suspensión de tenant (login y       |
+|               | JWT en curso bloqueados de inmediato);                        |
+|               | `max_stores`/`max_pos_per_store`/`max_kiosks_per_store` —     |
+|               | límites del plan; `currency`, `tax_rate`, `token_price`,      |
+|               | `kiosk_receipt_seconds`, `session_hours` (jsonb), `timezone`  |
 | `stores`      | FK → `clients`, `business_type` (RESTAURANT/RETAIL/BAR/CAFE)  |
-|               | — preset de módulos sugerido por giro                         |
+|               | — preset de módulos sugerido por giro; marca propia:          |
+|               | `logo_url`, `primary_color`, `accent_color`, `canvas_color`,  |
+|               | `menu_name`; `kitchen_ok_min`/`kitchen_warn_min`/             |
+|               | `kitchen_sound` (umbrales KDS)                                |
+| `devices`     | FK → `stores`, `type`, `name`, `active` — terminales          |
+|               | registradas del establecimiento                               |
 | `users`       | FK → `clients` (tenant); `user_stores` acota a qué            |
-|               | establecimientos opera (ADMIN: varios; kiosko: su store)      |
+|               | establecimientos opera (ADMIN: varios; kiosko: su store);     |
+|               | `active`, `token_version` (revoca JWTs al subir),             |
+|               | `deleted_at`; `email` UNIQUE global (ver F-14/HP-DB-02)       |
 | `user_stores` | FK → `users`, FK → `stores` — stores del mismo `client_id`    |
 | `client_modules` | FK → `clients`, `module` — módulos comprados por el cliente |
 | `user_modules`   | FK → `users`, `module` — ⊆ `client_modules` del cliente    |
@@ -106,7 +125,9 @@ Client (tenant: restaurante, café, etc.)
 |               | `ticket_number` (consecutivo semanal por tienda),             |
 |               | `cash_received`/`change_given` (solo pagos en efectivo),      |
 |               | `preparing_at`/`ready_at`/`completed_at` — timestamps de      |
-|               | ciclo de vida que alimentan el dashboard de tiempos           |
+|               | ciclo de vida que alimentan el dashboard de tiempos;          |
+|               | `idempotency_key` UNIQUE con `store_id` — reintento de red    |
+|               | devuelve la orden ya creada en vez de duplicarla              |
 | `order_items` | FK → `orders`, FK → `products` — snapshot por línea:          |
 |               | `unit_price` (base + size al cobrar), `quantity`, `size_id` + |
 |               | `size_name`, `extras` (jsonb: nombre+precio por línea),       |
@@ -114,16 +135,23 @@ Client (tenant: restaurante, café, etc.)
 |               | `notes` — sobrevive cambios de catálogo/precios               |
 | `token_sales` | FK → `stores`, `quantity`, `unit_price`/`total_price`         |
 |               | (snapshot de `clients.token_price` al vender),                |
-|               | `payment_method` (CASH/CARD), FK → `users` (staff que vendió  |
+|               | `payment_method` (CASH/CARD), `idempotency_key` UNIQUE con    |
+|               | `store_id`, FK → `users` (staff que vendió                    |
 |               | — las fichas son físicas, sin wallet). El canje NO va aquí:   |
 |               | es una orden con `payment_method = TOKEN`                     |
-| `tables`      | FK → `stores`, `zone` (DINING/BAR), `seats`, `number` —       |
-|               | la barra son 6 registros con `zone=BAR`, `seats=1`            |
-| `reservations`| FK → `tables`, `date`, `time_slot`, `party_size`,             |
-|               | `customer_name`, `phone`, `status` (PENDING/CONFIRMED/        |
-|               | SEATED/CANCELLED/NO_SHOW) — sin solapamientos por mesa        |
-| `tickets`     | **pendiente de implementar** — diseño: FK → `orders` (o       |
-|               | `token_sales`), `printed_at`. Hoy el ticket se arma al vuelo  |
+| `audit_events`| `actor_id`/`actor_name`, `client_id`, `store_id`, `action`,   |
+|               | `entity`/`entity_id`, `detail`/`diff` (jsonb), `created_at` — |
+|               | se escribe desde los services que mutan; lectura:             |
+|               | `GET /api/audit` (ADMIN ve su tenant; SUPERADMIN filtra)      |
+| `app_logs`    | logs estructurados de la app persistidos en DB (nivel,        |
+|               | mensaje, contexto); purga automática diaria                   |
+| `tables`      | **planeada** — FK → `stores`, `zone` (DINING/BAR), `seats`,   |
+|               | `number` — la barra son 6 registros con `zone=BAR`, `seats=1` |
+| `reservations`| **planeada** — FK → `tables`, `date`, `time_slot`,            |
+|               | `party_size`, `customer_name`, `phone`, `status`              |
+|               | (PENDING/CONFIRMED/SEATED/CANCELLED/NO_SHOW)                  |
+| `tickets`     | **planeada** — diseño: FK → `orders` (o `token_sales`),       |
+|               | `printed_at`. Hoy el ticket se arma al vuelo                  |
 |               | desde `orders` (`GET /api/orders/{id}/ticket`); el folio ya   |
 |               | es `orders.ticket_number` (consecutivo semanal por store)     |
 
@@ -133,6 +161,8 @@ Client (tenant: restaurante, café, etc.)
   pertenece a un `client_id`.
 - Un usuario solo opera sobre establecimientos de su cliente (`client_id` en
   `users`) y, salvo ADMIN, solo sobre los listados en `user_stores`.
+- Blindado por `security/CrossTenantIsolationTest` (~18 casos): lectura y
+  escritura contra tenant/tienda ajena son rechazadas por módulo.
 
 ## Borrado lógico (`deleted_at`)
 
