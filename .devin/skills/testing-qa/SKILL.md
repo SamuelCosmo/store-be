@@ -12,11 +12,13 @@ description: >
 
 ## Estado actual
 
-**store-be**: ~40 tests JUnit5 + Mockito (`*Test.java` junto a services).
+**store-be**: ~55 tests JUnit5 + Mockito (`*Test.java` junto a services).
 Cubren: AuthService (rate limit, login), OrderService (creación, estados,
 stock, refunds, idempotencia), ReportService (agregados), StoreService
-(scoping), RateLimiter, GlobalExceptionHandler. **Sin H2** — no hay tests
-de repositorio/DB reales en CI.
+(scoping), RateLimiter, GlobalExceptionHandler, y
+`security/CrossTenantIsolationTest` (HP-QA-05: lectura+escritura rechazada
+contra tenant/store ajeno en cada módulo — services reales sobre repos
+mockeados). **Sin H2** — no hay tests de repositorio/DB reales en CI.
 
 **store-fe**: sin suite de tests de componentes. Verificación = `tsc
 --noEmit` + `eslint` + prueba manual en `pnpm dev`.
@@ -68,5 +70,6 @@ pipeline de CI separado con gates.
 
 - [ ] Testcontainers/PostgreSQL real para repositories críticos.
 - [ ] Suite E2E del happy path (login → orden → ticket).
-- [ ] CI pipeline con `mvnw test` + `tsc` + `eslint` como gate.
+- [x] ~~CI pipeline con `mvnw test` + `tsc` + `eslint` como gate~~ (HP-QA-02).
+- [x] ~~Tests de aislamiento cross-tenant~~ (`CrossTenantIsolationTest`, HP-QA-05).
 - [ ] Mutation/coverage report (Jacoco) para visibilidad.
