@@ -18,21 +18,28 @@ stock, refunds, idempotencia), ReportService (agregados), StoreService
 (scoping), RateLimiter, GlobalExceptionHandler, y
 `security/CrossTenantIsolationTest` (HP-QA-05: lectura+escritura rechazada
 contra tenant/store ajeno en cada módulo — services reales sobre repos
-mockeados). **Sin H2** — no hay tests de repositorio/DB reales en CI.
+mockeados) y `repository/PostgresRepositoryIT` (HP-QA-04: `@DataJpaTest` +
+Testcontainers `postgres:16-alpine`, 7 tests — folio semanal, agregados del
+dashboard, top productos, idempotencia de órdenes/fichas, email
+case-insensitive y soft-delete). Requiere Docker; para Docker Desktop
+Engine ≥28 el bloque `static` fija `api.version=1.44` (docker-java 3.7.0
+fijado en `pom.xml` — la versión del BOM llama `/info` sin versionar y el
+daemon responde 400).
 
-**store-fe**: sin suite de tests de componentes. Verificación = `tsc
---noEmit` + `eslint` + prueba manual en `pnpm dev`.
+**store-fe**: 33 tests Vitest (`pnpm test`) en `lib/` + POS utils, y
+Playwright E2E `e2e/` (local, con `e2e/seed.sql`).
 
-**CI**: Railway corre `mvnw install` (compila tests) en deploy; no hay
-pipeline de CI separado con gates.
+**CI**: `.github/workflows/ci.yml` corre `mvnw test` en push a `main` y en
+PRs (los IT de Testcontainers corren donde haya Docker — en GH Actions el
+runner de Ubuntu lo trae).
 
-## Pirámide objetivo
+## Pirámide
 
 ```
-        E2E (futuro: Playwright/Cypress)
-      Integración (futuro: @DataJpaTest/@SpringBootTest con Testcontainers)
-    Unitarios (actual: services con Mockito)
-  Typecheck+Lint (actual front)
+        E2E (Playwright en store-fe — `pnpm test:e2e`)
+      Integración (@DataJpaTest + Testcontainers — PostgresRepositoryIT)
+    Unitarios (JUnit/Mockito back · Vitest front `lib/`)
+  Typecheck+Lint (CI en cada PR)
 ```
 
 ## Reglas
@@ -64,12 +71,13 @@ pipeline de CI separado con gates.
 | Cambio de cálculo (impuestos, totales, stock) | unitario con casos borde |
 | Nuevo código de error | `err.<CODE>` en i18n + test de mapeo si aplica |
 | Query agregada nueva | test con mocks verificando shape de `Object[]` |
-| Frontend lógica pura | Vitest cuando exista; mientras, verificación manual |
+| Query de repositorio delicada | caso en `PostgresRepositoryIT` (Postgres real) |
+| Frontend lógica pura | Vitest (`pnpm test` en store-fe) |
 
 ## Pendientes de calidad (del audit)
 
-- [ ] Testcontainers/PostgreSQL real para repositories críticos.
-- [ ] Suite E2E del happy path (login → orden → ticket).
 - [x] ~~CI pipeline con `mvnw test` + `tsc` + `eslint` como gate~~ (HP-QA-02).
 - [x] ~~Tests de aislamiento cross-tenant~~ (`CrossTenantIsolationTest`, HP-QA-05).
+- [x] ~~Testcontainers/PostgreSQL real~~ (`PostgresRepositoryIT`, HP-QA-04).
+- [x] ~~E2E happy path~~ (Playwright en store-fe, HP-QA-03; CI pendiente).
 - [ ] Mutation/coverage report (Jacoco) para visibilidad.
